@@ -43,8 +43,9 @@ parameters**, set *Manufacturer* and *Model* on a few air terminal types to prod
   `ModelDevice` records first, runs the HTTP lookups on a background task, and does every write back on Revit's thread.
 - **The user's shared parameter file is never changed.** Creating shared parameters needs a file; the add-in
   temporarily points Revit at its own and restores the user's setting afterwards.
-- **Values are unitless numbers named with their unit** (`MC_AirflowLps`), matching the IFC property set, so no
-  conversion from Revit's internal units (feet, cubic feet per second) is needed for catalog values.
+- **Values are unitless numbers named with their unit** (`MC_AirflowLps`), so no conversion from Revit's internal
+  units (feet, cubic feet per second) is needed for catalog values. For IFC export, map them in Revit's IFC exporter
+  to the standard IFC4 properties the IFC auditor reads (`Pset_AirTerminalOccurrence.AirFlowRate` and so on).
 
 ## Status and limitations
 

@@ -12,9 +12,12 @@ namespace MepCatalog.Ifc;
 /// Reads MEP devices from an IFC4 model into <see cref="ModelDevice"/> records and writes catalog values back.
 /// </summary>
 /// <remarks>
-/// Manufacturer and model come from the standard <c>Pset_ManufacturerTypeInformation</c>, on the element or its type
-/// (element values win). Technical values live in the <c>MepCatalog_ProductData</c> property set, with the unit in each
-/// property name so the values are unambiguous without relying on the project's unit assignment.
+/// <para>Manufacturer and model come from the standard <c>Pset_ManufacturerTypeInformation</c>, on the element or
+/// its type (element values win).</para>
+/// <para>Technical values use the standard IFC4 property sets where IFC defines one, in the project's units
+/// (see <see cref="StandardLocations"/>). IFC4 has no standard property for a round connection diameter or for the
+/// weight of these devices, so those live in the <c>MepCatalog_ProductData</c> set, with the unit in each property
+/// name. Values found only in that set (files written by older versions) are still read.</para>
 /// </remarks>
 public static class IfcDeviceAdapter
 {
@@ -29,6 +32,22 @@ public static class IfcDeviceAdapter
         ["IfcLightFixture"] = [ProductCategory.LightFixture],
     };
 
+    private enum Measure { FlowRate, Power }
+
+    private sealed record StandardLocation(string Pset, string Property, Measure Measure);
+
+    /// <summary>
+    /// Where IFC4 (ADD2 TC1) stores each catalog value, per element type. Names checked against the buildingSMART
+    /// documentation. The *TypeCommon sets are "type driven override" sets, so they are valid on an occurrence too.
+    /// </summary>
+    private static readonly Dictionary<(string ElementType, string Field), StandardLocation> StandardLocations = new()
+    {
+        [("IfcAirTerminal", nameof(Product.AirflowLps))] = new("Pset_AirTerminalOccurrence", "AirFlowRate", Measure.FlowRate),
+        [("IfcFan", nameof(Product.AirflowLps))] = new("Pset_FanTypeCommon", "NominalAirFlowRate", Measure.FlowRate),
+        [("IfcFan", nameof(Product.PowerW))] = new("Pset_FanTypeCommon", "NominalPowerRate", Measure.Power),
+        [("IfcLightFixture", nameof(Product.PowerW))] = new("Pset_LightFixtureTypeCommon", "TotalWattage", Measure.Power),
+    };
+
     /// <summary>
     /// The model's IfcProject GlobalId and name. The GlobalId survives edits and re-exports, so it identifies
     /// "the same model" across audits even when the file name changes. Null when the file has no project.
@@ -40,6 +59,7 @@ public static class IfcDeviceAdapter
 
     public static IReadOnlyList<ModelDevice> ReadDevices(IModel model)
     {
+        var units = IfcUnits.Of(model);
         return FindElements(model)
             .Select(element => new ModelDevice
             {
@@ -50,10 +70,10 @@ public static class IfcDeviceAdapter
                 Level = element.ContainedInStructure.FirstOrDefault()?.RelatingStructure.Name?.ToString(),
                 Manufacturer = ReadText(element, ManufacturerPset, "Manufacturer"),
                 Model = ReadText(element, ManufacturerPset, "ModelLabel") ?? ReadText(element, ManufacturerPset, "ModelReference"),
-                AirflowLps = ReadNumber(element, DataPset, nameof(Product.AirflowLps)),
-                PowerW = ReadNumber(element, DataPset, nameof(Product.PowerW)),
-                ConnectionSizeMm = ReadNumber(element, DataPset, nameof(Product.ConnectionSizeMm)) is { } mm ? (int)mm : null,
-                WeightKg = ReadNumber(element, DataPset, nameof(Product.WeightKg)),
+                AirflowLps = ReadField(element, nameof(Product.AirflowLps), units),
+                PowerW = ReadField(element, nameof(Product.PowerW), units),
+                ConnectionSizeMm = ReadField(element, nameof(Product.ConnectionSizeMm), units) is { } mm ? (int)Math.Round(mm) : null,
+                WeightKg = ReadField(element, nameof(Product.WeightKg), units),
             })
             .OrderBy(d => d.Level).ThenBy(d => d.Name)
             .ToList();
@@ -68,6 +88,7 @@ public static class IfcDeviceAdapter
         if (model.SchemaVersion != Xbim.Common.Step21.XbimSchemaVersion.Ifc4)
             throw new NotSupportedException($"Writing is only supported for IFC4 models, not {model.SchemaVersion}.");
 
+        var units = IfcUnits.Of(model);
         var elements = FindElements(model).ToDictionary(e => e.GlobalId.ToString());
         var changed = 0;
 
@@ -76,16 +97,27 @@ public static class IfcDeviceAdapter
             if (!elements.TryGetValue(result.Device.Id, out var element))
                 continue;
 
-            var pset = GetOrCreateOwnPropertySet(model, (IfcObject)element, DataPset);
+            var obj = (IfcObject)element;
+            var data = GetOrCreateOwnPropertySet(model, obj, DataPset);
             foreach (var change in result.Changes)
             {
-                IfcValue value = change.Field == nameof(Product.ConnectionSizeMm)
-                    ? new IfcInteger((long)change.CatalogValue)
-                    : new IfcReal(change.CatalogValue);
-                SetProperty(model, pset, change.Field, value);
+                if (StandardLocations.TryGetValue((element.ExpressType.ExpressName, change.Field), out var standard))
+                {
+                    var pset = GetOrCreateOwnPropertySet(model, obj, standard.Pset);
+                    SetProperty(model, pset, standard.Property, ToMeasure(change.CatalogValue, standard.Measure, units));
+                    // The standard property is now the one source; drop any older copy so the two can't disagree.
+                    RemoveProperty(data, change.Field);
+                }
+                else
+                {
+                    IfcValue value = change.Field == nameof(Product.ConnectionSizeMm)
+                        ? new IfcInteger((long)Math.Round(change.CatalogValue))
+                        : new IfcReal(change.CatalogValue);
+                    SetProperty(model, data, change.Field, value);
+                }
             }
-            SetProperty(model, pset, "CatalogProductId", new IfcInteger(result.Product!.Id));
-            SetProperty(model, pset, "CatalogSyncedUtc", new IfcLabel(DateTime.UtcNow.ToString("u")));
+            SetProperty(model, data, "CatalogProductId", new IfcInteger(result.Product!.Id));
+            SetProperty(model, data, "CatalogSyncedUtc", new IfcLabel(DateTime.UtcNow.ToString("u")));
             changed++;
         }
 
@@ -94,6 +126,31 @@ public static class IfcDeviceAdapter
 
     private static IEnumerable<IIfcElement> FindElements(IModel model) =>
         model.Instances.OfType<IIfcElement>().Where(e => ExpectedCategories.ContainsKey(e.ExpressType.ExpressName));
+
+    /// <summary>The standard property in catalog units if the element has it, otherwise the MepCatalog_ProductData value.</summary>
+    private static double? ReadField(IIfcElement element, string field, IfcUnits units)
+    {
+        if (StandardLocations.TryGetValue((element.ExpressType.ExpressName, field), out var standard)
+            && FindProperty(element, standard.Pset, standard.Property) is { NominalValue.Value: { } raw } property)
+        {
+            // A property may carry its own unit, which then wins over the project unit.
+            var factor = property.Unit is { } own
+                ? IfcUnits.ToSi(own)
+                : standard.Measure == Measure.FlowRate ? units.FlowRateFactor : units.PowerFactor;
+            var si = Convert.ToDouble(raw) * factor;
+            return Math.Round(standard.Measure == Measure.FlowRate ? si * 1000 : si, 6); // m³/s -> l/s; W stays W
+        }
+
+        return FindProperty(element, DataPset, field)?.NominalValue?.Value is { } v ? Convert.ToDouble(v) : null;
+    }
+
+    /// <summary>Catalog value (l/s or W) as an IFC measure in the project's unit.</summary>
+    private static IfcValue ToMeasure(double catalogValue, Measure measure, IfcUnits units) => measure switch
+    {
+        Measure.FlowRate => new IfcVolumetricFlowRateMeasure(catalogValue / 1000 / units.FlowRateFactor),
+        Measure.Power => new IfcPowerMeasure(catalogValue / units.PowerFactor),
+        _ => throw new ArgumentOutOfRangeException(nameof(measure)),
+    };
 
     /// <summary>Property sets on the element first, then on its type.</summary>
     private static IEnumerable<IIfcPropertySet> PropertySets(IIfcObject obj, string psetName)
@@ -107,20 +164,15 @@ public static class IfcDeviceAdapter
         return own.Concat(fromType).Where(p => p.Name == psetName);
     }
 
-    private static IIfcValue? ReadValue(IIfcObject obj, string psetName, string property) =>
+    private static IIfcPropertySingleValue? FindProperty(IIfcObject obj, string psetName, string property) =>
         PropertySets(obj, psetName)
             .SelectMany(p => p.HasProperties.OfType<IIfcPropertySingleValue>())
-            .Where(p => p.Name == property && p.NominalValue is not null)
-            .Select(p => p.NominalValue)
-            .FirstOrDefault();
+            .FirstOrDefault(p => p.Name == property && p.NominalValue is not null);
 
     private static string? ReadText(IIfcObject obj, string psetName, string property) =>
-        ReadValue(obj, psetName, property)?.Value?.ToString() is { Length: > 0 } text && !string.IsNullOrWhiteSpace(text)
+        FindProperty(obj, psetName, property)?.NominalValue?.Value?.ToString() is { } text && !string.IsNullOrWhiteSpace(text)
             ? text.Trim()
             : null;
-
-    private static double? ReadNumber(IIfcObject obj, string psetName, string property) =>
-        ReadValue(obj, psetName, property)?.Value is { } v ? Convert.ToDouble(v) : null;
 
     /// <summary>
     /// Returns a property set that belongs only to this element. A set shared with other elements is never
@@ -171,5 +223,11 @@ public static class IfcDeviceAdapter
             pset.HasProperties.Add(property);
         }
         property.NominalValue = value;
+    }
+
+    private static void RemoveProperty(IfcPropertySet pset, string name)
+    {
+        if (pset.HasProperties.OfType<IfcPropertySingleValue>().FirstOrDefault(p => p.Name == name) is { } property)
+            pset.HasProperties.Remove(property);
     }
 }

@@ -5,8 +5,9 @@ using MepCatalog.Core;
 namespace MepCatalog.Revit;
 
 /// <summary>
-/// The project parameters that hold catalog values on each device. They use the same names as the
-/// MepCatalog_ProductData property set in IFC, so an IFC export of the Revit model is auditable too.
+/// The project parameters that hold catalog values on each device, prefixed MC_ so they are easy to find in Revit.
+/// To audit an IFC export of the model, map them in Revit's IFC exporter (user-defined property sets) to the standard
+/// IFC4 properties the IFC auditor reads, or to its MepCatalog_ProductData set without the MC_ prefix.
 /// </summary>
 internal static class CatalogParameters
 {

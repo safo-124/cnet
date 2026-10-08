@@ -3,6 +3,7 @@ using Xbim.Common.Step21;
 using Xbim.Ifc;
 using Xbim.Ifc4.ElectricalDomain;
 using Xbim.Ifc4.HvacDomain;
+using Xbim.Ifc4.Interfaces;
 using Xbim.Ifc4.Kernel;
 using Xbim.Ifc4.MeasureResource;
 using Xbim.Ifc4.ProductExtension;
@@ -59,6 +60,7 @@ public static class SampleBuildingFactory
         using (var txn = model.BeginTransaction("Create sample building"))
         {
             var project = model.Instances.New<IfcProject>(p => p.Name = "Demo Office Building");
+            project.UnitsInContext = CreateUnits(model);
             var site = model.Instances.New<IfcSite>(s => s.Name = "Demo Site");
             var building = model.Instances.New<IfcBuilding>(b => b.Name = "Office A");
             Aggregate(model, project, site);
@@ -109,21 +111,81 @@ public static class SampleBuildingFactory
         AddPropertySet(model, element, IfcDeviceAdapter.ManufacturerPset, values);
     }
 
-    private static void AddProductData(IModel model, IfcElement element, DeviceSpec spec)
+    /// <summary>
+    /// Project units as a design tool would export them: lengths in mm, power in W, and airflow in litres per
+    /// second (a derived unit: litre, a conversion-based unit of 0.001 m³, divided by second).
+    /// </summary>
+    private static IfcUnitAssignment CreateUnits(IModel model)
     {
-        var values = new List<(string, IfcValue?)>
+        IfcSIUnit Si(IfcUnitEnum type, IfcSIUnitName name, IfcSIPrefix? prefix = null) => model.Instances.New<IfcSIUnit>(u =>
         {
-            ("AirflowLps", spec.AirflowLps is { } a ? new IfcReal(a) : null),
-            ("PowerW", spec.PowerW is { } p ? new IfcReal(p) : null),
-            ("ConnectionSizeMm", spec.ConnectionSizeMm is { } c ? new IfcInteger(c) : null),
-            ("WeightKg", spec.WeightKg is { } w ? new IfcReal(w) : null),
-        };
-        if (values.Any(v => v.Item2 is not null))
-            AddPropertySet(model, element, IfcDeviceAdapter.DataPset, values);
+            u.UnitType = type;
+            u.Name = name;
+            u.Prefix = prefix;
+        });
+
+        var litre = model.Instances.New<IfcConversionBasedUnit>(u =>
+        {
+            u.Name = "LITRE";
+            u.UnitType = IfcUnitEnum.VOLUMEUNIT;
+            u.Dimensions = model.Instances.New<IfcDimensionalExponents>(d => d.LengthExponent = 3);
+            u.ConversionFactor = model.Instances.New<IfcMeasureWithUnit>(m =>
+            {
+                m.ValueComponent = new IfcVolumeMeasure(0.001);
+                m.UnitComponent = Si(IfcUnitEnum.VOLUMEUNIT, IfcSIUnitName.CUBIC_METRE);
+            });
+        });
+        var litresPerSecond = model.Instances.New<IfcDerivedUnit>(u =>
+        {
+            u.UnitType = IfcDerivedUnitEnum.VOLUMETRICFLOWRATEUNIT;
+            u.Elements.Add(model.Instances.New<IfcDerivedUnitElement>(e => { e.Unit = litre; e.Exponent = 1; }));
+            u.Elements.Add(model.Instances.New<IfcDerivedUnitElement>(e => { e.Unit = Si(IfcUnitEnum.TIMEUNIT, IfcSIUnitName.SECOND); e.Exponent = -1; }));
+        });
+
+        return model.Instances.New<IfcUnitAssignment>(a =>
+        {
+            a.Units.Add(Si(IfcUnitEnum.LENGTHUNIT, IfcSIUnitName.METRE, IfcSIPrefix.MILLI));
+            a.Units.Add(Si(IfcUnitEnum.POWERUNIT, IfcSIUnitName.WATT));
+            a.Units.Add(litresPerSecond);
+        });
     }
 
+    /// <summary>
+    /// Airflow and power go where IFC4 defines them, in project units (l/s and W here). Connection size and weight
+    /// have no IFC4 standard property for these devices, so they go in the MepCatalog_ProductData set.
+    /// </summary>
+    private static void AddProductData(IModel model, IfcElement element, DeviceSpec spec)
+    {
+        IfcValue? Flow(double? lps) => lps is { } v ? new IfcVolumetricFlowRateMeasure(v) : null;
+        IfcValue? Power(double? w) => w is { } v ? new IfcPowerMeasure(v) : null;
+
+        switch (element)
+        {
+            case IfcAirTerminal:
+                AddPropertySet(model, element, "Pset_AirTerminalOccurrence", [("AirFlowRate", Flow(spec.AirflowLps))]);
+                break;
+            case IfcFan:
+                AddPropertySet(model, element, "Pset_FanTypeCommon",
+                    [("NominalAirFlowRate", Flow(spec.AirflowLps)), ("NominalPowerRate", Power(spec.PowerW))]);
+                break;
+            case IfcLightFixture:
+                AddPropertySet(model, element, "Pset_LightFixtureTypeCommon", [("TotalWattage", Power(spec.PowerW))]);
+                break;
+        }
+
+        AddPropertySet(model, element, IfcDeviceAdapter.DataPset,
+        [
+            ("ConnectionSizeMm", spec.ConnectionSizeMm is { } c ? new IfcInteger(c) : null),
+            ("WeightKg", spec.WeightKg is { } w ? new IfcReal(w) : null),
+        ]);
+    }
+
+    /// <summary>Adds a property set with the given values; skips it entirely when every value is missing.</summary>
     private static void AddPropertySet(IModel model, IfcElement element, string name, IEnumerable<(string Name, IfcValue? Value)> values)
     {
+        if (values.All(v => v.Value is null))
+            return;
+
         var pset = model.Instances.New<IfcPropertySet>(p => p.Name = name);
         foreach (var (propertyName, value) in values.Where(v => v.Value is not null))
         {

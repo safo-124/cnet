@@ -26,7 +26,7 @@ MepCatalog keeps that product data in one central catalog and checks building mo
 |---|---|
 | **Catalog API** | ASP.NET Core REST API with search, filtering, paging, validation and CSV import. Re-importing updates products instead of duplicating them. |
 | **Unit normalization** | `"180 m3/h"` → 50 l/s, `"0,18 kW"` → 180 W, `"Ø160"`/`"DN160"` → 160 mm. Finnish categories (`tuloilmalaite`, `puhallin`, `palopelti`, `valaisin`) are recognised. |
-| **IFC model auditor** | Reads IFC4 models with [xBIM](https://github.com/xBimTeam/XbimEssentials), matches each device to the catalog via the standard `Pset_ManufacturerTypeInformation`, and classifies it as *OK*, *needs update*, *unidentified*, *not in catalog* or *wrong product type*. |
+| **IFC model auditor** | Reads IFC4 models with [xBIM](https://github.com/xBimTeam/XbimEssentials), matches each device to the catalog via the standard `Pset_ManufacturerTypeInformation`, and classifies it as *OK*, *needs update*, *unidentified*, *not in catalog* or *wrong product type*. Airflow and power are read and written in the standard IFC4 property sets (`Pset_AirTerminalOccurrence`, `Pset_FanTypeCommon`, `Pset_LightFixtureTypeCommon`), converted through the model's own units (m³/s, l/s, m³/h, W, kW…). |
 | **Auto-fix** | Writes catalog values back into the model and records which catalog product they came from, so the change is traceable. |
 | **Audit history** | Every audit is saved and grouped by the model's IFC project GlobalId, which stays the same when a file is fixed, re-exported or renamed. A chart shows the model improving from audit to audit. |
 | **Excel report** | Summary, a filterable device list, a *designer actions* to-do sheet with a "Done" column, and every value change. |
@@ -141,6 +141,6 @@ GitHub Actions builds the solution with warnings as errors and runs the .NET tes
 ## Limitations and next steps
 
 - **Revit add-in**: built against the Revit 2026 API and compiled in CI, but not yet run inside Revit itself (see [its README](src/MepCatalog.Revit/README.md)).
-- **Standard property sets**: technical values currently live in a `MepCatalog_ProductData` set; mapping to standard IFC sets such as `Pset_AirTerminalTypeCommon` is the next step.
+- **Connection size and weight** stay in the `MepCatalog_ProductData` set: IFC4 has no standard property for a round duct connection diameter, and no weight quantity for air terminals, fans, dampers or luminaires.
 - **IFC2x3**: only IFC4 is supported. IFC2x3 models represent these devices as generic `IfcFlowTerminal` / `IfcFlowController` elements with type objects, which needs its own adapter.
 - **Authentication and hosting**: the API has no login yet. The natural production setup is Azure App Service + Azure SQL with Entra ID sign-in.
