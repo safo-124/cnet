@@ -1,4 +1,4 @@
-﻿using MepCatalog.Auditor;
+﻿using MepCatalog.Client;
 using MepCatalog.Core.Auditing;
 using MepCatalog.Ifc;
 using MepCatalog.Reporting;

@@ -32,6 +32,7 @@ MepCatalog keeps that product data in one central catalog and checks building mo
 | **AI datasheet reading** | Upload a manufacturer PDF; Claude reads the product table, the values go through the same normalizer as the CSV import, and a person reviews them before anything is saved. |
 | **Web UI** | React + TypeScript + shadcn/ui: catalog management, drag-and-drop model audit, and downloads of the fixed model and report. |
 | **CLI** | `MepCatalog.Auditor audit model.ifc --report audit.xlsx --fix fixed.ifc`, with a non-zero exit code while problems remain, so it can gate a pipeline. |
+| **Revit add-in** | [`src/MepCatalog.Revit`](src/MepCatalog.Revit): a *MepCatalog* ribbon tab in Revit 2026 that audits the open model with the same rules, fills catalog values into shared parameters in one undoable step, selects the devices that need a designer, and saves the Excel report. |
 | **Python data-quality tool** | [`tools/catalog-quality`](tools/catalog-quality) batch-imports a folder of manufacturer files over the REST API and checks the catalog: missing key data, implausible duct air velocities, fan efficiency (SFP) and spelling-variant duplicates. |
 
 ## Architecture
@@ -66,13 +67,15 @@ flowchart LR
 | `MepCatalog.Reporting` | Excel and CSV audit reports. |
 | `MepCatalog.Ai` | Claude-based PDF datasheet extraction (optional). |
 | `MepCatalog.Api` | REST API with OpenAPI docs (Scalar UI at `/scalar`). |
+| `MepCatalog.Client` | HTTP client for the catalog API, shared by the CLI and the Revit add-in. |
+| `MepCatalog.Revit` | Revit 2026 add-in: a thin Revit adapter over the shared audit rules. |
 | `MepCatalog.Auditor` / `MepCatalog.Importer` | Command-line tools. |
 | `web/` | React 19 + TypeScript + Vite + Tailwind + shadcn/ui + TanStack Query. |
 | `tools/catalog-quality/` | Python 3.12 CLI over the REST API (requests, pytest, ruff). |
 
 ## Design decisions
 
-- **The auditor doesn't know about IFC.** `DeviceAuditor` works on a format-neutral `ModelDevice` record. IFC is one adapter; a Revit add-in would be another adapter over the same, already-tested rules.
+- **The auditor doesn't know about IFC.** `DeviceAuditor` works on a format-neutral `ModelDevice` record. IFC is one adapter and the Revit add-in is another (under 200 lines), both over the same, already-tested rules.
 - **AI reads, code calculates.** Claude returns each value *exactly as printed* ("432 m3/h"), constrained by a JSON schema. Unit conversion runs through the same tested `ProductNormalizer` as the CSV import, so a language model never does arithmetic on engineering data.
 - **A person approves AI output.** Extraction only proposes products. Each one shows the converted value next to the value as printed, problems are flagged, and nothing is saved until the user confirms.
 - **Don't guess.** Devices with no product, an unknown product or the wrong kind of product are never "fixed" automatically. They go on the designer's to-do list instead.
@@ -136,7 +139,7 @@ GitHub Actions builds the solution with warnings as errors and runs the .NET tes
 
 ## Limitations and next steps
 
-- **Revit add-in**: the planned next adapter, reusing `DeviceAuditor` inside Revit through the Revit API.
+- **Revit add-in**: built against the Revit 2026 API and compiled in CI, but not yet run inside Revit itself (see [its README](src/MepCatalog.Revit/README.md)).
 - **Standard property sets**: technical values currently live in a `MepCatalog_ProductData` set; mapping to standard IFC sets such as `Pset_AirTerminalTypeCommon` is the next step.
 - **IFC2x3**: only IFC4 is supported. IFC2x3 models represent these devices as generic `IfcFlowTerminal` / `IfcFlowController` elements with type objects, which needs its own adapter.
 - **Authentication and hosting**: the API has no login yet. The natural production setup is Azure App Service + Azure SQL with Entra ID sign-in.

@@ -4,6 +4,7 @@
     <ProjectReference Include="..\MepCatalog.Core\MepCatalog.Core.csproj" />
     <ProjectReference Include="..\MepCatalog.Ifc\MepCatalog.Ifc.csproj" />
     <ProjectReference Include="..\MepCatalog.Reporting\MepCatalog.Reporting.csproj" />
+    <ProjectReference Include="..\MepCatalog.Client\MepCatalog.Client.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

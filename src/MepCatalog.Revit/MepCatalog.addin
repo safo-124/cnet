@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Revit reads this manifest from %AppData%\Autodesk\Revit\Addins\2026 at startup. -->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>MepCatalog</Name>
+    <Assembly>MepCatalog\MepCatalog.Revit.dll</Assembly>
+    <AddInId>7d0c6c1e-3a52-4f0e-9b1e-5c2f4a8e6d31</AddInId>
+    <FullClassName>MepCatalog.Revit.App</FullClassName>
+    <VendorId>MepCatalog</VendorId>
+    <VendorDescription>MepCatalog: building services product catalog and model audit</VendorDescription>
+  </AddIn>
+</RevitAddIns>

@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Revit 2026 add-in. Revit 2026 runs on .NET 8; Revit 2027 moved to .NET 10 (add a second target to support it). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RevitVersion>2026</RevitVersion>
+    <!-- Lets the whole solution build on Linux CI; the add-in itself only runs inside Revit on Windows. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- Copy MepCatalog.Core, .Client, .Reporting and their NuGet dependencies next to the add-in. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference-only copies of the Revit API, so the add-in builds without Revit installed. Revit supplies the real ones. -->
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MepCatalog.Core\MepCatalog.Core.csproj" />
+    <ProjectReference Include="..\MepCatalog.Client\MepCatalog.Client.csproj" />
+    <ProjectReference Include="..\MepCatalog.Reporting\MepCatalog.Reporting.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="MepCatalog.addin" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- WPF projects leave these out of the implicit usings (some names clash with WPF types); we use them throughout. -->
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <!--
+    On a machine with Revit 2026, a Debug build installs the add-in for the current user:
+      %AppData%\Autodesk\Revit\Addins\2026\MepCatalog.addin   (the manifest Revit reads at startup)
+      %AppData%\Autodesk\Revit\Addins\2026\MepCatalog\        (the add-in and its dependencies)
+  -->
+  <PropertyGroup>
+    <RevitAddinsFolder>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)</RevitAddinsFolder>
+  </PropertyGroup>
+  <Target Name="InstallToRevit" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug' And Exists('$(RevitAddinsFolder)')">
+    <ItemGroup>
+      <AddinFiles Include="$(OutDir)**\*.*" Exclude="$(OutDir)MepCatalog.addin" />
+    </ItemGroup>
+    <Copy SourceFiles="$(OutDir)MepCatalog.addin" DestinationFolder="$(RevitAddinsFolder)" />
+    <Copy SourceFiles="@(AddinFiles)" DestinationFiles="@(AddinFiles->'$(RevitAddinsFolder)\MepCatalog\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Message Importance="high" Text="Installed MepCatalog add-in to $(RevitAddinsFolder)" />
+  </Target>
+
+</Project>

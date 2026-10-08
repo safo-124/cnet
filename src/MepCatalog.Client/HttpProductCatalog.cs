@@ -5,9 +5,12 @@ using System.Text.Json.Serialization;
 using MepCatalog.Core;
 using MepCatalog.Core.Auditing;
 
-namespace MepCatalog.Auditor;
+namespace MepCatalog.Client;
 
-/// <summary>Looks up products through the MepCatalog REST API, caching each answer for the run.</summary>
+/// <summary>
+/// Looks up products through the MepCatalog REST API, caching each answer for the run.
+/// Shared by the command-line auditor and the Revit add-in.
+/// </summary>
 public class HttpProductCatalog(HttpClient http) : IProductCatalog
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
