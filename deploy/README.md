@@ -12,6 +12,9 @@ internet ──443──► Caddy (HTTPS, Let's Encrypt) ──► app :8080 (AP
 
 Tested on Ubuntu 24.04. A Hetzner CX22 (2 vCPU, 4 GB) builds and runs it comfortably.
 
+The live demo runs at **https://mepcatalog.135-181-93-156.sslip.io**, next to another site on the same server,
+using that server's existing Caddy (see the last section).
+
 ## First deployment
 
 ### 1. Connect to the server
@@ -97,7 +100,7 @@ allowing request bodies up to 100 MB.
 `caddy validate --config /etc/caddy/Caddyfile` and `systemctl reload caddy`:
 
 ```
-135-181-93-156.sslip.io {
+mepcatalog.135-181-93-156.sslip.io {
 	encode zstd gzip
 	request_body {
 		max_size 100MB
