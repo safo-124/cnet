@@ -1,0 +1,19 @@
+Manufacturer;Model;Category;Description;Airflow;Power;Connection Size;Weight
+Nordic Air Oy;ka-125;Tuloilmalaite;Ceiling supply diffuser, round;35 l/s;;Ø125;1,2 kg
+Nordic Air Oy;KA-160;tuloilmalaite;Ceiling supply diffuser, round;180 m3/h;;Ø160;1,6 kg
+Nordic Air Oy;KA-200;Supply diffuser;Ceiling supply diffuser, round;90 l/s;;200 mm;2.1 kg
+Nordic Air Oy;KP-100;Poistoilmalaite;Exhaust air valve;20 l/s;;Ø100;450 g
+Nordic Air Oy;KP-125;Exhaust valve;Exhaust air valve;108 m³/h;;Ø125;0,6 kg
+Nordic Air Oy;KP-160;poistoilmalaite;Exhaust air valve;45 l/s;;DN160;0.8
+VentoTech;VT-EC 250;Duct fan;EC duct fan, circular;0,35 m3/s;0,18 kW;Ø250;6.5 kg
+VentoTech;VT-EC 315;Puhallin;EC duct fan, circular;2520 m3/h;310 W;Ø315;9,8 kg
+VentoTech;VT-EC 400;Fan;EC duct fan, circular;1,1 m3/s;0.75 kW;0.4 m;15 kg
+VentoTech;FD-200;Palopelti;Fire damper EI60;;;Ø200;3.4 kg
+VentoTech;SD-160;Säätöpelti;Volume control damper;;;Ø160;1.1 kg
+Lumo Lighting;LX-600 Panel;Valaisin;LED panel 600x600, 3000 lm;;28 W;;3.2 kg
+Lumo Lighting;LX-Downlight 18;Luminaire;LED downlight, 1800 lm;;18W;;0,4 kg
+Lumo Lighting;LX-Line 1500;light fixture;LED linear luminaire, 1500 mm;;42 W;;2,7 kg
+  nordic air oy ;KA-125;Supply air terminal;Ceiling supply diffuser, round (updated datasheet);36 l/s;;Ø125;1,2 kg
+Nordic Air Oy;KA-250;Ilmastointikone;Unknown category example;120 l/s;;Ø250;3 kg
+;KX-999;Fan;Row without manufacturer;50 l/s;100 W;Ø160;4 kg
+VentoTech;VT-EC 500;Fan;Row with a bad unit;1,8 m3/s;1,1 hp;Ø500;24 kg
