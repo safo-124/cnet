@@ -487,3 +487,7 @@ $RECYCLE.BIN/
 *.db
 *.db-shm
 *.db-wal
+
+# Auditor outputs
+data/*-fixed.ifc
+data/audit-report.csv
