@@ -1,4 +1,5 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
+using MepCatalog.Api.Audits;
 using MepCatalog.Api.Products;
 using MepCatalog.Data;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<CatalogDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Catalog")));
 builder.Services.AddScoped<ProductImportService>();
+builder.Services.AddScoped<DbProductCatalog>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -35,6 +37,7 @@ app.MapScalarApiReference();
 app.MapGet("/", () => Results.Redirect("/scalar")).ExcludeFromDescription();
 
 app.MapProductEndpoints();
+app.MapAuditEndpoints();
 
 app.Run();
 

@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\MepCatalog.Core\MepCatalog.Core.csproj" />
     <ProjectReference Include="..\MepCatalog.Data\MepCatalog.Data.csproj" />
+    <ProjectReference Include="..\MepCatalog.Ifc\MepCatalog.Ifc.csproj" />
   </ItemGroup>
 
   <ItemGroup>

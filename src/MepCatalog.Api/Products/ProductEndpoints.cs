@@ -62,12 +62,9 @@ public static class ProductEndpoints
     }
 
     private static async Task<Results<Ok<ProductDto>, NotFound>> Lookup(
-        string manufacturer, string model, CatalogDbContext db, CancellationToken ct)
+        string manufacturer, string model, DbProductCatalog catalog, CancellationToken ct)
     {
-        var m = manufacturer.Trim().ToUpper();
-        var code = model.Trim().ToUpperInvariant();
-        var product = await db.Products.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Manufacturer.ToUpper() == m && p.Model == code, ct);
+        var product = await catalog.FindAsync(manufacturer, model, ct);
         return product is null ? TypedResults.NotFound() : TypedResults.Ok(ProductDto.From(product));
     }
 
