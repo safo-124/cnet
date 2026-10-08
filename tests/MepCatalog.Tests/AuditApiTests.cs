@@ -46,6 +46,31 @@ public class AuditApiTests : IClassFixture<ApiFactory>, IDisposable
     }
 
     [Fact]
+    public async Task Original_and_fixed_model_are_one_history_because_the_ifc_project_is_the_same()
+    {
+        await SeedCatalog();
+        var original = await File.ReadAllBytesAsync(_modelPath);
+
+        var first = await Audit(original);
+        using var fixContent = Upload(original, "office.ifc");
+        var fixedModel = await (await _client.PostAsync("/api/audits/fix", fixContent)).Content.ReadAsByteArrayAsync();
+        var second = await Audit(fixedModel);
+
+        Assert.Null(first.Previous);
+        Assert.Equal(first.ProjectGlobalId, second.ProjectGlobalId);
+        Assert.Equal(first.Summary.Ok, second.Previous!.Ok);
+
+        var history = await _client.GetFromJsonAsync<ModelHistory>($"/api/audits/history/{first.ProjectGlobalId}", Json);
+        Assert.Equal([3, 11], history!.Runs.Select(r => r.Ok));
+        Assert.Equal("Demo Office Building", history.ProjectName);
+
+        var models = await _client.GetFromJsonAsync<List<ModelHistorySummary>>("/api/audits/history", Json);
+        var model = Assert.Single(models!, m => m.ProjectGlobalId == first.ProjectGlobalId);
+        Assert.Equal(2, model.Runs);
+        Assert.Equal(11, model.Latest.Ok);
+    }
+
+    [Fact]
     public async Task Report_returns_an_excel_workbook()
     {
         using var content = Upload(await File.ReadAllBytesAsync(_modelPath), "office.ifc");

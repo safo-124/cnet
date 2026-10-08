@@ -79,7 +79,38 @@ export interface AuditDevice {
   changes: FieldChange[]
 }
 
+/** Summary of one saved audit. */
+export interface AuditRun {
+  id: number
+  fileName: string
+  auditedUtc: string
+  total: number
+  ok: number
+  needsUpdate: number
+  needsDesigner: number
+}
+
+/** One model in the history list, identified by its IFC project GlobalId. */
+export interface ModelHistorySummary {
+  projectGlobalId: string
+  projectName: string | null
+  runs: number
+  first: AuditRun
+  latest: AuditRun
+}
+
+export interface ModelHistory {
+  projectGlobalId: string
+  projectName: string | null
+  runs: AuditRun[]
+}
+
 export interface AuditResponse {
+  /** IFC project GlobalId; null when the model has no IfcProject (then it isn't saved to the history). */
+  projectGlobalId: string | null
+  projectName: string | null
+  /** The previous audit of the same model, if any. */
+  previous: AuditRun | null
   fileName: string
   summary: {
     total: number
@@ -219,6 +250,11 @@ export const api = {
   fixModel: (file: File) => postForFile('/api/audits/fix', file, 'model-fixed.ifc'),
 
   auditReport: (file: File) => postForFile('/api/audits/report', file, 'audit-report.xlsx'),
+
+  auditHistory: () => request<ModelHistorySummary[]>('/api/audits/history'),
+
+  modelHistory: (projectGlobalId: string) =>
+    request<ModelHistory>(`/api/audits/history/${encodeURIComponent(projectGlobalId)}`),
 
   datasheetStatus: () => request<DatasheetStatus>('/api/datasheets/status'),
 

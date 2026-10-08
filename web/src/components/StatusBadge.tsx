@@ -1,21 +1,6 @@
 import type { AuditStatus } from '@/lib/api'
+import { STATUS_INFO, TONE_CLASSES, type StatusTone } from '@/lib/status'
 import { cn } from '@/lib/utils'
-
-export type StatusTone = 'success' | 'warning' | 'danger'
-
-export const STATUS_INFO: Record<AuditStatus, { label: string; tone: StatusTone }> = {
-  Ok: { label: 'OK', tone: 'success' },
-  NeedsUpdate: { label: 'Needs update', tone: 'warning' },
-  Unidentified: { label: 'Unidentified', tone: 'danger' },
-  NotInCatalog: { label: 'Not in catalog', tone: 'danger' },
-  CategoryMismatch: { label: 'Wrong product type', tone: 'danger' },
-}
-
-export const TONE_CLASSES: Record<StatusTone, { pill: string; dot: string; text: string; bar: string }> = {
-  success: { pill: 'bg-success-soft text-success', dot: 'bg-success', text: 'text-success', bar: 'bg-success' },
-  warning: { pill: 'bg-warning-soft text-warning', dot: 'bg-warning', text: 'text-warning', bar: 'bg-warning' },
-  danger: { pill: 'bg-danger-soft text-danger', dot: 'bg-danger', text: 'text-danger', bar: 'bg-danger' },
-}
 
 /** A pill with a colored dot, e.g. "● Needs update". */
 export function StatusPill({ tone, children, className }: { tone: StatusTone; children: React.ReactNode; className?: string }) {

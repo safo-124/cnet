@@ -22,7 +22,15 @@ public record AuditDeviceDto(
     int? ProductId,
     IReadOnlyList<FieldChange> Changes);
 
-public record AuditResponse(string FileName, AuditSummary Summary, IReadOnlyList<AuditDeviceDto> Devices);
+/// <param name="ProjectGlobalId">The model's IFC project GlobalId; audits are grouped by it in the history.</param>
+/// <param name="Previous">The previous audit of the same model, so the UI can show what changed.</param>
+public record AuditResponse(
+    string FileName,
+    AuditSummary Summary,
+    IReadOnlyList<AuditDeviceDto> Devices,
+    string? ProjectGlobalId = null,
+    string? ProjectName = null,
+    AuditRunDto? Previous = null);
 
 public static class AuditEndpoints
 {
@@ -62,7 +70,7 @@ public static class AuditEndpoints
     }
 
     private static async Task<Results<Ok<AuditResponse>, BadRequest<string>>> Audit(
-        IFormFile file, DbProductCatalog catalog, CancellationToken ct)
+        IFormFile file, DbProductCatalog catalog, CatalogDbContext db, CancellationToken ct)
     {
         if (Validate(file) is { } error)
             return TypedResults.BadRequest(error);
@@ -73,7 +81,28 @@ public static class AuditEndpoints
             return TypedResults.BadRequest(openError!);
 
         var results = await new DeviceAuditor(catalog).AuditAsync(IfcDeviceAdapter.ReadDevices(model), ct);
-        return TypedResults.Ok(new AuditResponse(file.FileName, Summarize(results), results.Select(ToDto).ToList()));
+        var summary = Summarize(results);
+        var response = new AuditResponse(file.FileName, summary, results.Select(ToDto).ToList());
+
+        // Models without an IfcProject can still be audited; they just aren't added to the history.
+        if (IfcDeviceAdapter.ReadProject(model) is not { } project)
+            return TypedResults.Ok(response);
+
+        var previous = await AuditHistory.RecordAsync(db, new AuditRun
+        {
+            ProjectGlobalId = project.GlobalId,
+            ProjectName = project.Name,
+            FileName = file.FileName,
+            AuditedUtc = DateTime.UtcNow,
+            Total = summary.Total,
+            Ok = summary.Ok,
+            NeedsUpdate = summary.NeedsUpdate,
+            Unidentified = summary.Unidentified,
+            NotInCatalog = summary.NotInCatalog,
+            CategoryMismatch = summary.CategoryMismatch,
+        }, ct);
+
+        return TypedResults.Ok(response with { ProjectGlobalId = project.GlobalId, ProjectName = project.Name, Previous = previous });
     }
 
     private static async Task<Results<FileContentHttpResult, BadRequest<string>>> Fix(

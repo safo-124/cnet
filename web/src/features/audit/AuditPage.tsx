@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router'
 import {
   AirVentIcon,
   ArrowRightIcon,
@@ -10,6 +11,7 @@ import {
   FanIcon,
   FileBoxIcon,
   FileSpreadsheetIcon,
+  HistoryIcon,
   LightbulbIcon,
   ListChecksIcon,
   RotateCcwIcon,
@@ -20,13 +22,15 @@ import {
 import { toast } from 'sonner'
 import { FileDrop } from '@/components/FileDrop'
 import { PageHeader } from '@/components/PageHeader'
-import { StatusBadge, STATUS_INFO, TONE_CLASSES, type StatusTone } from '@/components/StatusBadge'
+import { StatusBadge } from '@/components/StatusBadge'
+import { STATUS_INFO, TONE_CLASSES, type StatusTone } from '@/lib/status'
+import { StatusBar } from '@/components/StatusBar'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api, SAMPLES, type AuditDevice, type AuditResponse } from '@/lib/api'
-import { downloadBlob, FIELD_INFO, formatNumber } from '@/lib/format'
+import { downloadBlob, FIELD_INFO, formatNumber, formatRelative, percentOk as formatPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const ELEMENT_TYPES: Record<string, { label: string; icon: LucideIcon }> = {
@@ -51,7 +55,12 @@ export function AuditPage() {
   const [file, setFile] = useState<File | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
 
-  const audit = useMutation({ mutationFn: api.auditModel })
+  const queryClient = useQueryClient()
+  const audit = useMutation({
+    mutationFn: api.auditModel,
+    // A new audit is a new entry in the history.
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['audit-history'] }),
+  })
   const fix = useMutation({
     mutationFn: api.fixModel,
     onSuccess: ({ blob, fileName }) => {
@@ -197,19 +206,22 @@ function HealthCard({ result }: { result: AuditResponse }) {
         </div>
       </div>
 
+      {result.previous && result.projectGlobalId && (
+        <Link
+          to={`/history/${encodeURIComponent(result.projectGlobalId)}`}
+          className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm hover:bg-muted"
+        >
+          <HistoryIcon className="size-4 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1">
+            Last audit {formatRelative(result.previous.auditedUtc)}: <strong>{formatPercent(result.previous)}%</strong>
+            {' → '}now <strong>{percentOk}%</strong>
+          </span>
+          <span className="shrink-0 font-medium text-primary">View history</span>
+        </Link>
+      )}
+
       <div className="grid gap-3">
-        <div className="flex h-2.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${percentOk}% of devices match the catalog`}>
-          {segments.map(
-            (s) =>
-              s.count > 0 && (
-                <div
-                  key={s.tone}
-                  className={cn('h-full first:rounded-l-full last:rounded-r-full', TONE_CLASSES[s.tone].bar)}
-                  style={{ width: `${(s.count / summary.total) * 100}%` }}
-                />
-              ),
-          )}
-        </div>
+        <StatusBar ok={summary.ok} fixable={summary.needsUpdate} designer={designer} className="h-2.5" />
         <div className="flex flex-wrap gap-x-6 gap-y-2">
           {segments.map((s) => (
             <div key={s.tone} className="flex items-center gap-2 text-sm">

@@ -1,15 +1,18 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { BoxesIcon, ScanSearchIcon, type LucideIcon } from 'lucide-react'
+import { BoxesIcon, HistoryIcon, ScanSearchIcon, type LucideIcon } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AuditPage } from '@/features/audit/AuditPage'
 import { CatalogPage } from '@/features/catalog/CatalogPage'
+import { HistoryPage } from '@/features/history/HistoryPage'
+import { ModelHistoryPage } from '@/features/history/ModelHistoryPage'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 const NAV: { to: string; label: string; hint: string; icon: LucideIcon }[] = [
   { to: '/catalog', label: 'Catalog', hint: 'Products and data', icon: BoxesIcon },
   { to: '/audit', label: 'Model audit', hint: 'Check IFC models', icon: ScanSearchIcon },
+  { to: '/history', label: 'History', hint: 'Models over time', icon: HistoryIcon },
 ]
 
 export default function App() {
@@ -87,6 +90,8 @@ export default function App() {
             <Route path="/" element={<Navigate to="/catalog" replace />} />
             <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/audit" element={<AuditPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/history/:projectGlobalId" element={<ModelHistoryPage />} />
             <Route path="*" element={<Navigate to="/catalog" replace />} />
           </Routes>
         </main>

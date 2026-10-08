@@ -28,6 +28,7 @@ MepCatalog keeps that product data in one central catalog and checks building mo
 | **Unit normalization** | `"180 m3/h"` → 50 l/s, `"0,18 kW"` → 180 W, `"Ø160"`/`"DN160"` → 160 mm. Finnish categories (`tuloilmalaite`, `puhallin`, `palopelti`, `valaisin`) are recognised. |
 | **IFC model auditor** | Reads IFC4 models with [xBIM](https://github.com/xBimTeam/XbimEssentials), matches each device to the catalog via the standard `Pset_ManufacturerTypeInformation`, and classifies it as *OK*, *needs update*, *unidentified*, *not in catalog* or *wrong product type*. |
 | **Auto-fix** | Writes catalog values back into the model and records which catalog product they came from, so the change is traceable. |
+| **Audit history** | Every audit is saved and grouped by the model's IFC project GlobalId, which stays the same when a file is fixed, re-exported or renamed. A chart shows the model improving from audit to audit. |
 | **Excel report** | Summary, a filterable device list, a *designer actions* to-do sheet with a "Done" column, and every value change. |
 | **AI datasheet reading** | Upload a manufacturer PDF; Claude reads the product table, the values go through the same normalizer as the CSV import, and a person reviews them before anything is saved. |
 | **Web UI** | React + TypeScript + shadcn/ui: catalog management, drag-and-drop model audit, and downloads of the fixed model and report. |

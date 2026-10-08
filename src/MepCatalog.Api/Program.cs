@@ -91,6 +91,7 @@ app.MapGet("/healthz", () => Results.Ok("healthy")).ExcludeFromDescription();
 
 app.MapProductEndpoints();
 app.MapAuditEndpoints();
+app.MapAuditHistoryEndpoints();
 app.MapDatasheetEndpoints();
 
 // Unknown /api routes stay 404s; every other path is a client-side route in the React app.

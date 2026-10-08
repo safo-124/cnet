@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { api, SAMPLES, type ExtractedProduct, type ProductCategory, type ProductInput } from '@/lib/api'
-import { CategoryBadge } from '@/lib/categories'
+import { CategoryBadge } from '@/components/CategoryBadge'
 import { formatNumber } from '@/lib/format'
 import { ProductDialog } from './ProductDialog'
 

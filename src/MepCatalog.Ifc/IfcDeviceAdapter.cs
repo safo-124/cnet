@@ -29,6 +29,15 @@ public static class IfcDeviceAdapter
         ["IfcLightFixture"] = [ProductCategory.LightFixture],
     };
 
+    /// <summary>
+    /// The model's IfcProject GlobalId and name. The GlobalId survives edits and re-exports, so it identifies
+    /// "the same model" across audits even when the file name changes. Null when the file has no project.
+    /// </summary>
+    public static (string GlobalId, string? Name)? ReadProject(IModel model) =>
+        model.Instances.FirstOrDefault<IIfcProject>() is { } project
+            ? (project.GlobalId.ToString(), project.Name?.ToString())
+            : null;
+
     public static IReadOnlyList<ModelDevice> ReadDevices(IModel model)
     {
         return FindElements(model)
