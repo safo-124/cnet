@@ -4,6 +4,8 @@
 
 **A product catalog and BIM model auditor for building services (HVAC and electrical) design.**
 
+**Live demo: https://mepcatalog.135-181-93-156.sslip.io** (open *Model audit* and use the sample model link)
+
 Designers place hundreds of air terminals, fans, dampers and light fixtures in a building model, and each one should carry
 correct product data: airflow, power, connection size, weight. Filling this in by hand is slow and error-prone, and the data
 goes out of date when manufacturers update their datasheets.
