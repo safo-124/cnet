@@ -169,11 +169,26 @@ export const api = {
   auditModel: (file: File) =>
     request<AuditResponse>('/api/audits', { method: 'POST', body: formWithFile(file) }),
 
-  async fixModel(file: File): Promise<{ blob: Blob; fileName: string }> {
-    const response = await fetch('/api/audits/fix', { method: 'POST', body: formWithFile(file) })
-    if (!response.ok) throw await toApiError(response)
-    const disposition = response.headers.get('Content-Disposition') ?? ''
-    const fileName = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? 'model-fixed.ifc'
-    return { blob: await response.blob(), fileName }
-  },
+  fixModel: (file: File) => postForFile('/api/audits/fix', file, 'model-fixed.ifc'),
+
+  auditReport: (file: File) => postForFile('/api/audits/report', file, 'audit-report.xlsx'),
+}
+
+export interface DownloadedFile {
+  blob: Blob
+  fileName: string
+}
+
+/** Uploads a file and returns the file the server sends back, named from its Content-Disposition header. */
+async function postForFile(url: string, file: File, fallbackName: string): Promise<DownloadedFile> {
+  let response: Response
+  try {
+    response = await fetch(url, { method: 'POST', body: formWithFile(file) })
+  } catch {
+    throw new ApiError(0, 'Cannot reach the API. Is the backend running on port 5236?')
+  }
+  if (!response.ok) throw await toApiError(response)
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const fileName = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? fallbackName
+  return { blob: await response.blob(), fileName }
 }

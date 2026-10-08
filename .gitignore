@@ -491,3 +491,4 @@ $RECYCLE.BIN/
 # Auditor outputs
 data/*-fixed.ifc
 data/audit-report.csv
+data/audit-report.xlsx

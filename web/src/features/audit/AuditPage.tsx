@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { ArrowRightIcon, CircleAlertIcon, DownloadIcon, RotateCcwIcon } from 'lucide-react'
+import { ArrowRightIcon, CircleAlertIcon, DownloadIcon, FileSpreadsheetIcon, RotateCcwIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { FileDrop } from '@/components/FileDrop'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -44,6 +44,14 @@ export function AuditPage() {
     },
     onError: (error) => toast.error(error.message),
   })
+  const report = useMutation({
+    mutationFn: api.auditReport,
+    onSuccess: ({ blob, fileName }) => {
+      downloadBlob(blob, fileName)
+      toast.success(`Downloaded ${fileName}`)
+    },
+    onError: (error) => toast.error(error.message),
+  })
 
   function start(selected: File) {
     setFile(selected)
@@ -69,6 +77,9 @@ export function AuditPage() {
           <div className="flex gap-2">
             <Button variant="outline" onClick={reset}>
               <RotateCcwIcon /> Audit another model
+            </Button>
+            <Button variant="outline" disabled={report.isPending} onClick={() => file && report.mutate(file)}>
+              <FileSpreadsheetIcon /> {report.isPending ? 'Creating…' : 'Excel report'}
             </Button>
             <Button
               disabled={audit.data.summary.needsUpdate === 0 || fix.isPending}

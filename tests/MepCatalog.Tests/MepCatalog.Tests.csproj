@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\MepCatalog.Data\MepCatalog.Data.csproj" />
     <ProjectReference Include="..\..\src\MepCatalog.Api\MepCatalog.Api.csproj" />
     <ProjectReference Include="..\..\src\MepCatalog.Ifc\MepCatalog.Ifc.csproj" />
+    <ProjectReference Include="..\..\src\MepCatalog.Reporting\MepCatalog.Reporting.csproj" />
   </ItemGroup>
 
 </Project>

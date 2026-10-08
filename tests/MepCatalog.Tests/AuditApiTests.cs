@@ -6,6 +6,7 @@ using MepCatalog.Api.Audits;
 using MepCatalog.Api.Products;
 using MepCatalog.Core;
 using MepCatalog.Ifc;
+using MepCatalog.Reporting;
 
 namespace MepCatalog.Tests;
 
@@ -42,6 +43,20 @@ public class AuditApiTests : IClassFixture<ApiFactory>, IDisposable
         var after = await Audit(await fixResponse.Content.ReadAsByteArrayAsync());
         Assert.Equal(0, after.Summary.NeedsUpdate);
         Assert.Equal(11, after.Summary.Ok);
+    }
+
+    [Fact]
+    public async Task Report_returns_an_excel_workbook()
+    {
+        using var content = Upload(await File.ReadAllBytesAsync(_modelPath), "office.ifc");
+
+        var response = await _client.PostAsync("/api/audits/report", content);
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(ExcelAuditReport.ContentType, response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("office-audit.xlsx", response.Content.Headers.ContentDisposition?.FileName);
+        using var workbook = new ClosedXML.Excel.XLWorkbook(await response.Content.ReadAsStreamAsync());
+        Assert.Equal(14, workbook.Worksheet("All devices").Table("Devices").DataRange.RowCount());
     }
 
     [Fact]

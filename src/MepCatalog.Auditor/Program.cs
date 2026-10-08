@@ -1,7 +1,7 @@
-using System.Text;
-using MepCatalog.Auditor;
+﻿using MepCatalog.Auditor;
 using MepCatalog.Core.Auditing;
 using MepCatalog.Ifc;
+using MepCatalog.Reporting;
 using Xbim.Ifc;
 
 const string Usage = """
@@ -9,10 +9,10 @@ const string Usage = """
       MepCatalog.Auditor sample <out.ifc>
           Create a sample IFC4 office model to try the auditor with.
 
-      MepCatalog.Auditor audit <model.ifc> [--api <url>] [--report <report.csv>] [--fix <out.ifc>]
+      MepCatalog.Auditor audit <model.ifc> [--api <url>] [--report <report.xlsx|.csv>] [--fix <out.ifc>]
           Check every air terminal, fan, damper and light fixture against the catalog.
           --api     Catalog API address (default http://localhost:5236)
-          --report  Write the results to a CSV file
+          --report  Write the results to an Excel (.xlsx) or CSV (.csv) file
           --fix     Fill missing/outdated values from the catalog and save the model to a new file
     """;
 
@@ -76,7 +76,11 @@ async Task<int> Audit(string modelPath, string apiUrl, string? reportPath, strin
 
     if (reportPath is not null)
     {
-        WriteCsvReport(reportPath, results);
+        if (Path.GetExtension(reportPath).Equals(".csv", StringComparison.OrdinalIgnoreCase))
+            CsvAuditReport.Write(reportPath, results);
+        else
+            File.WriteAllBytes(reportPath, ExcelAuditReport.Create(
+                new AuditReportInfo(Path.GetFileName(modelPath), DateTime.UtcNow, apiUrl), results));
         Console.WriteLine($"Report written to {Path.GetFullPath(reportPath)}");
     }
 
@@ -109,7 +113,7 @@ static void PrintResults(string modelName, IReadOnlyList<DeviceAuditResult> resu
             AuditStatus.NeedsUpdate => ConsoleColor.Yellow,
             _ => ConsoleColor.Red,
         };
-        Console.WriteLine($"{group.Key} ({group.Count()})");
+        Console.WriteLine($"{AuditStatusText.Label(group.Key)} ({group.Count()})");
         Console.ResetColor();
 
         foreach (var r in group)
@@ -124,28 +128,4 @@ static void PrintResults(string modelName, IReadOnlyList<DeviceAuditResult> resu
     var fixable = results.Count(r => r.CanAutoFix);
     var manual = results.Count(r => r.Status is not (AuditStatus.Ok or AuditStatus.NeedsUpdate));
     Console.WriteLine($"Summary: {results.Count(r => r.Status == AuditStatus.Ok)} ok, {fixable} fixable automatically, {manual} need a designer");
-}
-
-static void WriteCsvReport(string path, IReadOnlyList<DeviceAuditResult> results)
-{
-    static string Cell(object? value)
-    {
-        var text = value?.ToString() ?? "";
-        return text.IndexOfAny([';', '"', '\n']) >= 0 ? $"\"{text.Replace("\"", "\"\"")}\"" : text;
-    }
-
-    var sb = new StringBuilder();
-    sb.AppendLine("GlobalId;Level;Name;ElementType;Manufacturer;Model;Status;Message;Changes");
-    foreach (var r in results)
-    {
-        var changes = string.Join(", ", r.Changes.Select(c => $"{c.Field}: {c.ModelValue?.ToString() ?? "missing"} -> {c.CatalogValue}"));
-        sb.AppendLine(string.Join(';', new object?[]
-        {
-            r.Device.Id, r.Device.Level, r.Device.Name, r.Device.ElementType,
-            r.Device.Manufacturer, r.Device.Model, r.Status, r.Message, changes,
-        }.Select(Cell)));
-    }
-
-    // UTF-8 with BOM so Excel shows Finnish characters correctly.
-    File.WriteAllText(path, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
 }

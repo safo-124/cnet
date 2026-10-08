@@ -1,6 +1,7 @@
 ﻿using MepCatalog.Core.Auditing;
 using MepCatalog.Data;
 using MepCatalog.Ifc;
+using MepCatalog.Reporting;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Xbim.Ifc;
@@ -37,6 +38,26 @@ public static class AuditEndpoints
         group.MapPost("/fix", Fix)
             .WithSummary("Fill missing/outdated values from the catalog and return the fixed IFC file")
             .WithMetadata(new RequestSizeLimitAttribute(MaxModelBytes));
+        group.MapPost("/report", Report)
+            .WithSummary("Audit an IFC4 model and return the results as an Excel workbook")
+            .WithMetadata(new RequestSizeLimitAttribute(MaxModelBytes));
+    }
+
+    private static async Task<Results<FileContentHttpResult, BadRequest<string>>> Report(
+        IFormFile file, DbProductCatalog catalog, HttpRequest request, CancellationToken ct)
+    {
+        if (Validate(file) is { } error)
+            return TypedResults.BadRequest(error);
+
+        using var upload = await TempFile.SaveAsync(file, ct);
+        using var model = OpenModel(upload.Path, out var openError);
+        if (model is null)
+            return TypedResults.BadRequest(openError!);
+
+        var results = await new DeviceAuditor(catalog).AuditAsync(IfcDeviceAdapter.ReadDevices(model), ct);
+        var info = new AuditReportInfo(file.FileName, DateTime.UtcNow, $"MepCatalog API ({request.Host})");
+        var name = $"{Path.GetFileNameWithoutExtension(file.FileName)}-audit.xlsx";
+        return TypedResults.File(ExcelAuditReport.Create(info, results), ExcelAuditReport.ContentType, name);
     }
 
     private static async Task<Results<Ok<AuditResponse>, BadRequest<string>>> Audit(
