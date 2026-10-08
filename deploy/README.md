@@ -90,5 +90,22 @@ When nginx, Traefik or another proxy already uses ports 80 and 443, start withou
 docker compose up -d --build
 ```
 
-and add a site to the existing proxy that forwards to `http://127.0.0.1:8080`, allowing request bodies up to 100 MB.
-For nginx: `proxy_pass http://127.0.0.1:8080;` and `client_max_body_size 100m;`, plus the usual `X-Forwarded-For` and `X-Forwarded-Proto` headers.
+and add a site to the existing proxy that forwards to `http://127.0.0.1:8080` (or the `APP_PORT` you set in `.env`),
+allowing request bodies up to 100 MB.
+
+**Existing Caddy** (installed as a system service): add this block to `/etc/caddy/Caddyfile`, then run
+`caddy validate --config /etc/caddy/Caddyfile` and `systemctl reload caddy`:
+
+```
+135-181-93-156.sslip.io {
+	encode zstd gzip
+	request_body {
+		max_size 100MB
+	}
+	reverse_proxy 127.0.0.1:8080
+}
+```
+
+Caddy passes `X-Forwarded-For` and `X-Forwarded-Proto` on by itself.
+
+**nginx:** `proxy_pass http://127.0.0.1:8080;` and `client_max_body_size 100m;`, plus the usual `X-Forwarded-For` and `X-Forwarded-Proto` headers.

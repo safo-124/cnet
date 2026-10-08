@@ -14,7 +14,9 @@ services:
     image: mepcatalog
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080" # only reachable from the server itself, never directly from the internet
+      # Only reachable from the server itself, never directly from the internet.
+      # APP_PORT can be changed in .env if 8080 is already used by something else.
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
     volumes:
       - catalog-data:/data
     environment:
