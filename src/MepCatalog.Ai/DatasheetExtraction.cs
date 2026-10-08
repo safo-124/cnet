@@ -23,11 +23,14 @@ public interface IDatasheetExtractor
 /// <summary>A problem the user should see, such as an unreadable PDF or a declined request.</summary>
 public class DatasheetExtractionException(string message) : Exception(message);
 
-/// <summary>Used when no API key is configured.</summary>
-public sealed class DisabledDatasheetExtractor : IDatasheetExtractor
+/// <summary>Used when no API key is configured, or on a public demo where the feature is switched off on purpose.</summary>
+/// <param name="reason">Shown to the user, e.g. why the feature is off and how to turn it on.</param>
+public sealed class DisabledDatasheetExtractor(string reason) : IDatasheetExtractor
 {
+    public string Reason { get; } = reason;
+
     public bool IsConfigured => false;
 
     public Task<DatasheetExtraction> ExtractAsync(byte[] pdf, CancellationToken ct = default) =>
-        throw new DatasheetExtractionException("AI extraction is not configured. Set the Anthropic API key to enable it.");
+        throw new DatasheetExtractionException(Reason);
 }

@@ -495,3 +495,6 @@ data/audit-report.xlsx
 
 # Personal notes (not part of the project)
 notes/
+
+# Server settings
+.env

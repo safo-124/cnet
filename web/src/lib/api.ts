@@ -95,6 +95,15 @@ export interface AuditResponse {
 export interface DatasheetStatus {
   enabled: boolean
   model: string | null
+  /** Why the feature is off, e.g. on the public demo. */
+  disabledReason: string | null
+}
+
+/** Sample files served by the API, so visitors without their own data can try everything. */
+export const SAMPLES = {
+  model: '/samples/sample-building.ifc',
+  products: '/samples/sample-products.csv',
+  datasheet: '/samples/datasheets/nordic-air-ka-series.pdf',
 }
 
 export interface ExtractedProduct {

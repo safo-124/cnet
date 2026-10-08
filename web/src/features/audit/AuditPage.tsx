@@ -25,7 +25,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { api, type AuditDevice, type AuditResponse } from '@/lib/api'
+import { api, SAMPLES, type AuditDevice, type AuditResponse } from '@/lib/api'
 import { downloadBlob, FIELD_INFO, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -104,9 +104,16 @@ export function AuditPage() {
               className="bg-muted/30 py-16"
               disabled={audit.isPending}
               title={audit.isPending ? `Auditing ${file?.name}…` : 'Drop an IFC model here or click to choose'}
-              hint={audit.isPending ? 'Reading devices and checking the catalog' : 'IFC4 · up to 100 MB · try data/sample-building.ifc'}
+              hint={audit.isPending ? 'Reading devices and checking the catalog' : 'IFC4 · up to 100 MB'}
               onFile={start}
             />
+            <p className="mt-3 text-center text-sm text-muted-foreground">
+              No IFC model at hand?{' '}
+              <a href={SAMPLES.model} download className="font-medium text-primary underline-offset-4 hover:underline">
+                Download the sample office model
+              </a>{' '}
+              (14 devices on 2 levels) and drop it above.
+            </p>
           </div>
           <div className="grid gap-px border-t bg-border sm:grid-cols-3">
             <Step n={1} icon={UploadIcon} title="Upload a model" text="Any IFC4 export from Revit, MagiCAD or another design tool." />

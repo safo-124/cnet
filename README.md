@@ -111,6 +111,15 @@ dotnet user-secrets set "Anthropic:ApiKey" "<your key>" --project src/MepCatalog
 
 Restart the API, then use **Catalog → From datasheet** with `data/datasheets/nordic-air-ka-series.pdf`. The `ANTHROPIC_API_KEY` environment variable also works.
 
+### Running with Docker
+
+```bash
+docker build -t mepcatalog .
+docker run -p 8080:8080 -v mepcatalog-data:/data mepcatalog   # -> http://localhost:8080
+```
+
+The image runs in demo mode: the sample catalog is loaded on first start and the sample files can be downloaded from the app. See [deploy/README.md](deploy/README.md) for the public HTTPS deployment with Caddy.
+
 ## Tests and CI
 
 ```bash

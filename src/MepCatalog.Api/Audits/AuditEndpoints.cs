@@ -30,7 +30,8 @@ public static class AuditEndpoints
 
     public static void MapAuditEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/audits").WithTags("Audits").DisableAntiforgery();
+        var group = app.MapGroup("/api/audits").WithTags("Audits").DisableAntiforgery()
+            .RequireRateLimiting(RateLimits.Uploads);
 
         group.MapPost("/", Audit)
             .WithSummary("Audit an IFC4 model against the catalog")

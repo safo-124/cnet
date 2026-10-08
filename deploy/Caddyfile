@@ -1,0 +1,19 @@
+# Caddy gets and renews a Let's Encrypt certificate for {$DOMAIN} automatically.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# IFC models can be large; the API allows up to 100 MB.
+	request_body {
+		max_size 100MB
+	}
+
+	reverse_proxy app:8080
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}

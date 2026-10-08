@@ -24,7 +24,7 @@ public record RawValuesDto(
 
 public record DatasheetResponse(string FileName, string? Notes, IReadOnlyList<ExtractedProductDto> Products);
 
-public record DatasheetStatus(bool Enabled, string? Model);
+public record DatasheetStatus(bool Enabled, string? Model, string? DisabledReason);
 
 public static class DatasheetEndpoints
 {
@@ -34,13 +34,16 @@ public static class DatasheetEndpoints
     {
         var group = app.MapGroup("/api/datasheets").WithTags("Datasheets").DisableAntiforgery();
 
-        group.MapGet("/status", (IDatasheetExtractor extractor) =>
-            new DatasheetStatus(extractor.IsConfigured, extractor.IsConfigured ? ClaudeDatasheetExtractor.Model : null))
+        group.MapGet("/status", (IDatasheetExtractor extractor) => new DatasheetStatus(
+                extractor.IsConfigured,
+                extractor.IsConfigured ? ClaudeDatasheetExtractor.Model : null,
+                (extractor as DisabledDatasheetExtractor)?.Reason))
             .WithSummary("Whether AI datasheet extraction is configured");
 
         group.MapPost("/extract", Extract)
             .WithSummary("Read a manufacturer PDF datasheet with AI and return the products for review (nothing is saved)")
-            .WithMetadata(new RequestSizeLimitAttribute(MaxPdfBytes));
+            .WithMetadata(new RequestSizeLimitAttribute(MaxPdfBytes))
+            .RequireRateLimiting(RateLimits.Uploads);
     }
 
     private static async Task<Results<Ok<DatasheetResponse>, BadRequest<string>, ProblemHttpResult>> Extract(

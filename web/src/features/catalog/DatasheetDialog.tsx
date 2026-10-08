@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { api, type ExtractedProduct, type ProductCategory, type ProductInput } from '@/lib/api'
+import { api, SAMPLES, type ExtractedProduct, type ProductCategory, type ProductInput } from '@/lib/api'
 import { CategoryBadge } from '@/lib/categories'
 import { formatNumber } from '@/lib/format'
 import { ProductDialog } from './ProductDialog'
@@ -93,11 +93,8 @@ export function DatasheetDialog({ onClose }: { onClose: () => void }) {
           {status.data && !status.data.enabled && (
             <Alert>
               <InfoIcon />
-              <AlertTitle>AI extraction is not configured</AlertTitle>
-              <AlertDescription>
-                Add an Anthropic API key to the API and restart it:{' '}
-                <code className="text-xs">dotnet user-secrets set "Anthropic:ApiKey" "…" --project src/MepCatalog.Api</code>
-              </AlertDescription>
+              <AlertTitle>AI datasheet reading is off</AlertTitle>
+              <AlertDescription>{status.data.disabledReason}</AlertDescription>
             </Alert>
           )}
 
@@ -106,9 +103,18 @@ export function DatasheetDialog({ onClose }: { onClose: () => void }) {
               accept=".pdf,application/pdf"
               disabled={extract.isPending}
               title={extract.isPending ? 'Reading the datasheet…' : 'Drop a PDF datasheet here or click to choose'}
-              hint={extract.isPending ? 'This usually takes 10–40 seconds.' : 'Try data/datasheets/nordic-air-ka-series.pdf'}
+              hint={extract.isPending ? 'This usually takes 10–40 seconds.' : 'Text-based PDFs up to 20 MB'}
               onFile={(file) => extract.mutate(file)}
             />
+          )}
+
+          {status.data && !extract.data && (
+            <p className="text-sm text-muted-foreground">
+              Sample:{' '}
+              <a href={SAMPLES.datasheet} download className="font-medium text-primary underline-offset-4 hover:underline">
+                Nordic Air KA series datasheet (PDF)
+              </a>
+            </p>
           )}
 
           {extract.error && (

@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { FileDrop } from '@/components/FileDrop'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { api } from '@/lib/api'
+import { api, SAMPLES } from '@/lib/api'
 
 export function ImportDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
@@ -35,6 +35,13 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
           disabled={importCsv.isPending}
           onFile={(file) => importCsv.mutate(file)}
         />
+        <p className="text-sm text-muted-foreground">
+          Sample:{' '}
+          <a href={SAMPLES.products} download className="font-medium text-primary underline-offset-4 hover:underline">
+            messy manufacturer CSV
+          </a>{' '}
+          with mixed units, Finnish category names and a few broken rows.
+        </p>
 
         {importCsv.error && (
           <Alert variant="destructive">

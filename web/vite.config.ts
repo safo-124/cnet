@@ -15,6 +15,7 @@ export default defineConfig({
     // Forward API calls to the ASP.NET Core backend, so the browser sees one origin (no CORS in development).
     proxy: {
       '/api': 'http://localhost:5236',
+      '/samples': 'http://localhost:5236',
     },
   },
 })

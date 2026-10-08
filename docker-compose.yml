@@ -1,0 +1,42 @@
+# Public demo deployment.
+#
+#   With the bundled Caddy (gets an HTTPS certificate automatically):
+#     docker compose --profile proxy up -d --build
+#
+#   Behind a reverse proxy you already run (nginx, Traefik...): leave the profile out and
+#   point the proxy at http://127.0.0.1:8080.
+#
+# Settings come from a .env file next to this one (see deploy/.env.example).
+
+services:
+  app:
+    build: .
+    image: mepcatalog
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080" # only reachable from the server itself, never directly from the internet
+    volumes:
+      - catalog-data:/data
+    environment:
+      Demo__Enabled: "true"
+
+  caddy:
+    image: caddy:2
+    profiles: [proxy]
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env, e.g. 203-0-113-10.sslip.io}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  catalog-data:
+  caddy-data:
+  caddy-config:
