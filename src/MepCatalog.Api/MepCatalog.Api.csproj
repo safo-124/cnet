@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\MepCatalog.Core\MepCatalog.Core.csproj" />
     <ProjectReference Include="..\MepCatalog.Data\MepCatalog.Data.csproj" />
     <ProjectReference Include="..\MepCatalog.Ifc\MepCatalog.Ifc.csproj" />
     <ProjectReference Include="..\MepCatalog.Reporting\MepCatalog.Reporting.csproj" />
+    <ProjectReference Include="..\MepCatalog.Ai\MepCatalog.Ai.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,6 +21,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>24cfbf03-a265-469b-8d55-289d22a6035e</UserSecretsId>
   </PropertyGroup>
 
 </Project>

@@ -56,3 +56,5 @@ public record ProductInput(
 }
 
 public record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
+
+public record ProductStats(int Total, IReadOnlyDictionary<ProductCategory, int> ByCategory);

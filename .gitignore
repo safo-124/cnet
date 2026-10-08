@@ -492,3 +492,6 @@ $RECYCLE.BIN/
 data/*-fixed.ifc
 data/audit-report.csv
 data/audit-report.xlsx
+
+# Personal notes (not part of the project)
+notes/

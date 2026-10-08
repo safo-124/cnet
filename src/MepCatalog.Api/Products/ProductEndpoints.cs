@@ -21,6 +21,21 @@ public static class ProductEndpoints
             .WithSummary("Import a manufacturer CSV file")
             .DisableAntiforgery();
         group.MapGet("/categories", () => Enum.GetNames<ProductCategory>().Where(c => c != nameof(ProductCategory.Unknown)));
+        group.MapGet("/stats", Stats).WithSummary("Number of products in total and per category");
+    }
+
+    private static async Task<Ok<ProductStats>> Stats(CatalogDbContext db, CancellationToken ct)
+    {
+        var counts = await db.Products
+            .GroupBy(p => p.Category)
+            .Select(g => new { Category = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Every category is listed, including empty ones, so the UI can show a stable set of tiles.
+        var byCategory = Enum.GetValues<ProductCategory>()
+            .Where(c => c != ProductCategory.Unknown)
+            .ToDictionary(c => c, c => counts.FirstOrDefault(x => x.Category == c)?.Count ?? 0);
+        return TypedResults.Ok(new ProductStats(counts.Sum(x => x.Count), byCategory));
     }
 
     private static async Task<Ok<PagedResult<ProductDto>>> Search(

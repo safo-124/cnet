@@ -22,6 +22,8 @@ public class ApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:Catalog", _connectionString);
+        // Never call the real (paid) AI service from tests, even if a developer has a key in user-secrets.
+        builder.UseSetting("Anthropic:ApiKey", "");
     }
 
     protected override void Dispose(bool disposing)

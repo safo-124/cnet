@@ -30,7 +30,7 @@ interface FormState {
   weightKg: string
 }
 
-function toFormState(product: Product | null): FormState {
+function toFormState(product: ProductInput | null): FormState {
   const text = (v: number | null | undefined) => (v === null || v === undefined ? '' : String(v))
   return {
     manufacturer: product?.manufacturer ?? '',
@@ -62,12 +62,16 @@ function toInput(form: FormState): ProductInput {
 interface Props {
   /** The product to edit, or null to create a new one. */
   product: Product | null
+  /** Starting values for a new product, e.g. from a datasheet. */
+  draft?: ProductInput | null
+  title?: string
   onClose: () => void
+  onSaved?: (saved: Product) => void
 }
 
-export function ProductDialog({ product, onClose }: Props) {
+export function ProductDialog({ product, draft, title, onClose, onSaved }: Props) {
   const queryClient = useQueryClient()
-  const [form, setForm] = useState(() => toFormState(product))
+  const [form, setForm] = useState(() => toFormState(product ?? draft ?? null))
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }))
 
   const save = useMutation({
@@ -75,6 +79,7 @@ export function ProductDialog({ product, onClose }: Props) {
     onSuccess: (saved) => {
       void queryClient.invalidateQueries({ queryKey: ['products'] })
       toast.success(`${saved.manufacturer} ${saved.model} ${product ? 'updated' : 'added'}`)
+      onSaved?.(saved)
       onClose()
     },
   })
@@ -91,7 +96,7 @@ export function ProductDialog({ product, onClose }: Props) {
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{product ? `Edit ${product.manufacturer} ${product.model}` : 'Add product'}</DialogTitle>
+          <DialogTitle>{title ?? (product ? `Edit ${product.manufacturer} ${product.model}` : 'Add product')}</DialogTitle>
         </DialogHeader>
 
         <form id="product-form" onSubmit={submit} className="grid gap-4">

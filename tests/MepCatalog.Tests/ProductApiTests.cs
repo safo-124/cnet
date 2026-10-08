@@ -92,6 +92,19 @@ public class ProductApiTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Stats_count_products_per_category_including_empty_ones()
+    {
+        var input = new ProductInput("Stats Oy", "S-1", ProductCategory.Damper, null, null, null, 160, null);
+        await _client.PostAsJsonAsync("/api/products", input, Json);
+
+        var stats = await _client.GetFromJsonAsync<ProductStats>("/api/products/stats", Json);
+
+        Assert.Equal(5, stats!.ByCategory.Count);
+        Assert.True(stats.ByCategory[ProductCategory.Damper] >= 1);
+        Assert.Equal(stats.Total, stats.ByCategory.Values.Sum());
+    }
+
+    [Fact]
     public async Task Delete_removes_the_product()
     {
         var input = new ProductInput("Del Oy", "X-1", ProductCategory.LightFixture, null, null, 20, null, null);

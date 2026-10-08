@@ -1,4 +1,4 @@
-// Typed client for the MepCatalog ASP.NET Core API. In development Vite proxies /api to the backend.
+﻿// Typed client for the MepCatalog ASP.NET Core API. In development Vite proxies /api to the backend.
 
 export const CATEGORIES = [
   'SupplyAirTerminal',
@@ -38,6 +38,11 @@ export interface PagedResult<T> {
   page: number
   pageSize: number
   totalCount: number
+}
+
+export interface ProductStats {
+  total: number
+  byCategory: Record<ProductCategory, number>
 }
 
 export interface ImportRowError {
@@ -85,6 +90,37 @@ export interface AuditResponse {
     categoryMismatch: number
   }
   devices: AuditDevice[]
+}
+
+export interface DatasheetStatus {
+  enabled: boolean
+  model: string | null
+}
+
+export interface ExtractedProduct {
+  /** Values exactly as printed in the datasheet. */
+  raw: {
+    manufacturer: string | null
+    model: string | null
+    category: string | null
+    description: string | null
+    airflow: string | null
+    power: string | null
+    connectionSize: string | null
+    weight: string | null
+  }
+  /** Normalized values, or null when something could not be read. */
+  product: ProductInput | null
+  issues: string[]
+  existingProductId: number | null
+  /** Every value that could be read; category may be 'Unknown'. Starting point for a manual fix. */
+  draft: Omit<ProductInput, 'category'> & { category: ProductCategory | 'Unknown' }
+}
+
+export interface DatasheetResponse {
+  fileName: string
+  notes: string | null
+  products: ExtractedProduct[]
 }
 
 export class ApiError extends Error {
@@ -155,6 +191,8 @@ export const api = {
     return request<PagedResult<Product>>(`/api/products?${params}`)
   },
 
+  productStats: () => request<ProductStats>('/api/products/stats'),
+
   createProduct: (input: ProductInput) =>
     request<Product>('/api/products', { method: 'POST', ...json(input) }),
 
@@ -172,6 +210,11 @@ export const api = {
   fixModel: (file: File) => postForFile('/api/audits/fix', file, 'model-fixed.ifc'),
 
   auditReport: (file: File) => postForFile('/api/audits/report', file, 'audit-report.xlsx'),
+
+  datasheetStatus: () => request<DatasheetStatus>('/api/datasheets/status'),
+
+  extractDatasheet: (file: File) =>
+    request<DatasheetResponse>('/api/datasheets/extract', { method: 'POST', body: formWithFile(file) }),
 }
 
 export interface DownloadedFile {
