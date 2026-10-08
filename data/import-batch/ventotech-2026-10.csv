@@ -1,0 +1,4 @@
+Manufacturer,Model,Category,Description,Airflow,Power,Connection Size,Weight
+VentoTech,VT-AC 200,Fan,"AC duct fan, legacy model",540 m3/h,450 W,Ø200,7 kg
+VentoTech,VT-EC 160,Fan,"EC duct fan, circular",0.06 m3/s,45 W,Ø160,4.2 kg
+VentoTech,FD-250,Fire damper,Fire damper EI60,,,Ø250,

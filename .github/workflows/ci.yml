@@ -30,6 +30,30 @@ jobs:
       - name: Test
         run: dotnet test --no-build --configuration Release --logger "console;verbosity=normal"
 
+  python-tool:
+    name: Python tool (lint + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/catalog-quality
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/catalog-quality/pyproject.toml
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check . && ruff format --check .
+
+      - name: Test
+        run: pytest -v
+
   frontend:
     name: Frontend (type-check, lint, build)
     runs-on: ubuntu-latest

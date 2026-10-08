@@ -4,7 +4,7 @@
 
 **A product catalog and BIM model auditor for building services (HVAC and electrical) design.**
 
-**Live demo: https://mepcatalog.135-181-93-156.sslip.io** (open *Model audit* and use the sample model link)
+**Live demo: https://mepcatalog.135.181.93.156.nip.io** (open *Model audit* and use the sample model link)
 
 Designers place hundreds of air terminals, fans, dampers and light fixtures in a building model, and each one should carry
 correct product data: airflow, power, connection size, weight. Filling this in by hand is slow and error-prone, and the data
@@ -32,6 +32,7 @@ MepCatalog keeps that product data in one central catalog and checks building mo
 | **AI datasheet reading** | Upload a manufacturer PDF; Claude reads the product table, the values go through the same normalizer as the CSV import, and a person reviews them before anything is saved. |
 | **Web UI** | React + TypeScript + shadcn/ui: catalog management, drag-and-drop model audit, and downloads of the fixed model and report. |
 | **CLI** | `MepCatalog.Auditor audit model.ifc --report audit.xlsx --fix fixed.ifc`, with a non-zero exit code while problems remain, so it can gate a pipeline. |
+| **Python data-quality tool** | [`tools/catalog-quality`](tools/catalog-quality) batch-imports a folder of manufacturer files over the REST API and checks the catalog: missing key data, implausible duct air velocities, fan efficiency (SFP) and spelling-variant duplicates. |
 
 ## Architecture
 
@@ -67,6 +68,7 @@ flowchart LR
 | `MepCatalog.Api` | REST API with OpenAPI docs (Scalar UI at `/scalar`). |
 | `MepCatalog.Auditor` / `MepCatalog.Importer` | Command-line tools. |
 | `web/` | React 19 + TypeScript + Vite + Tailwind + shadcn/ui + TanStack Query. |
+| `tools/catalog-quality/` | Python 3.12 CLI over the REST API (requests, pytest, ruff). |
 
 ## Design decisions
 
@@ -128,9 +130,9 @@ The image runs in demo mode: the sample catalog is loaded on first start and the
 dotnet test
 ```
 
-61 tests cover unit parsing, normalization, the audit rules, an IFC round trip (create → audit → fix → save → reopen → audit again), the Excel report contents, and the HTTP API end to end against an in-memory database.
+68 .NET tests cover unit parsing, normalization, the audit rules, an IFC round trip (create → audit → fix → save → reopen → audit again), the Excel report contents, demo mode, and the HTTP API end to end against an in-memory database. The Python tool has 24 more tests of its own.
 
-GitHub Actions builds the solution with warnings as errors, runs the tests on Linux, and type-checks, lints and builds the web app on every push.
+GitHub Actions builds the solution with warnings as errors and runs the .NET tests on Linux, lints and tests the Python tool, and type-checks, lints and builds the web app on every push.
 
 ## Limitations and next steps
 
