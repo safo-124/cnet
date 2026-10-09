@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, lazy, Suspense, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import {
@@ -15,6 +15,7 @@ import {
   LightbulbIcon,
   ListChecksIcon,
   RotateCcwIcon,
+  TableIcon,
   UploadIcon,
   WrenchIcon,
   type LucideIcon,
@@ -28,10 +29,14 @@ import { StatusBar } from '@/components/StatusBar'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api, SAMPLES, type AuditDevice, type AuditResponse } from '@/lib/api'
 import { downloadBlob, FIELD_INFO, formatNumber, formatRelative, percentOk as formatPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
+
+// The 3D viewer (three.js + the web-ifc WebAssembly engine, ~2 MB) is only downloaded when someone opens it.
+const ModelViewer = lazy(() => import('./ModelViewer'))
 
 const ELEMENT_TYPES: Record<string, { label: string; icon: LucideIcon }> = {
   IfcAirTerminal: { label: 'Air terminal', icon: AirVentIcon },
@@ -152,7 +157,7 @@ export function AuditPage() {
               onReport={() => file && report.mutate(file)}
             />
           </div>
-          <DeviceTable devices={result.devices} filter={filter} onFilter={setFilter} />
+          {file && <DeviceTable file={file} devices={result.devices} filter={filter} onFilter={setFilter} />}
         </>
       )}
     </div>
@@ -298,15 +303,21 @@ function NextStepsCard({
 }
 
 function DeviceTable({
+  file,
   devices,
   filter,
   onFilter,
 }: {
+  file: File
   devices: AuditDevice[]
   filter: Filter
   onFilter: (f: Filter) => void
 }) {
-  const visible = devices.filter(FILTERS.find((f) => f.value === filter)!.matches)
+  const [view, setView] = useState<'table' | '3d'>('table')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const visible = useMemo(() => devices.filter(FILTERS.find((f) => f.value === filter)!.matches), [devices, filter])
+  const visibleIds = useMemo(() => new Set(visible.map((d) => d.id)), [visible])
+  const selected = devices.find((d) => d.id === selectedId)
   // Devices arrive sorted by level, so grouping keeps the building order.
   const byLevel = new Map<string, AuditDevice[]>()
   for (const d of visible) {
@@ -317,7 +328,26 @@ function DeviceTable({
   return (
     <Card className="gap-0 overflow-hidden py-0">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-        <span className="text-sm font-medium">Devices</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium">Devices</span>
+          <div className="flex rounded-lg bg-muted p-0.5" role="group" aria-label="View">
+            {(['table', '3d'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                onClick={() => setView(v)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground',
+                  view === v && 'bg-card font-medium text-foreground shadow-sm',
+                )}
+              >
+                {v === 'table' ? <TableIcon className="size-3.5" /> : <BoxIcon className="size-3.5" />}
+                {v === 'table' ? 'Table' : '3D'}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex rounded-lg bg-muted p-0.5" role="group" aria-label="Filter devices">
           {FILTERS.map((f) => (
             <button
@@ -337,6 +367,30 @@ function DeviceTable({
         </div>
       </div>
 
+      {view === '3d' && (
+        <>
+          <Suspense fallback={<Skeleton className="h-[520px] rounded-none" />}>
+            <ModelViewer
+              file={file}
+              devices={devices}
+              visibleIds={visibleIds}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
+          </Suspense>
+          {selected ? (
+            <Table>
+              <TableBody>
+                <DeviceRow device={selected} />
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="border-t px-4 py-3 text-sm text-muted-foreground">Click a device in the model to see its details.</p>
+          )}
+        </>
+      )}
+
+      {view === 'table' && (
       <Table>
         <TableHeader className="bg-muted/50">
           <TableRow className="hover:bg-transparent">
@@ -368,6 +422,7 @@ function DeviceTable({
           )}
         </TableBody>
       </Table>
+      )}
     </Card>
   )
 }
