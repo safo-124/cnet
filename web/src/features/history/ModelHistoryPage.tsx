@@ -87,9 +87,40 @@ function Stat({ label, value, detail, emphasis }: { label: string; value: string
 
 /** The chart's data as a table: the accessible view, and where the exact numbers live. Newest first. */
 function RunsTable({ runs }: { runs: AuditRun[] }) {
+  const newestFirst = runs.map((run, i) => ({ run, number: i + 1, previous: runs[i - 1] })).reverse()
+
   return (
     <Card className="gap-0 overflow-hidden py-0">
-      <Table>
+      {/* Phones: one row per audit with the essentials. */}
+      <ul className="divide-y md:hidden">
+        {newestFirst.map(({ run, number, previous }) => (
+          <li key={run.id} className="grid gap-2 px-4 py-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="font-medium">
+                <span className="text-muted-foreground tabular-nums">#{number}</span> {formatDateTime(run.auditedUtc)}
+              </span>
+              <span className="text-sm font-semibold tabular-nums">
+                {percentOk(run)}%
+                {previous && percentOk(run) !== percentOk(previous) && (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    ({percentOk(run) > percentOk(previous) ? '+' : ''}
+                    {percentOk(run) - percentOk(previous)})
+                  </span>
+                )}
+              </span>
+            </div>
+            <StatusBar ok={run.ok} fixable={run.needsUpdate} designer={run.needsDesigner} />
+            <div className="flex justify-between gap-3 text-xs text-muted-foreground tabular-nums">
+              <span className="min-w-0 truncate">{run.fileName}</span>
+              <span className="shrink-0">
+                {run.ok} OK · {run.needsUpdate} fixable · {run.needsDesigner} designer
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <Table className="hidden md:table">
         <TableHeader className="bg-muted/50">
           <TableRow className="hover:bg-transparent">
             <TableHead className="pl-4">#</TableHead>
@@ -102,10 +133,7 @@ function RunsTable({ runs }: { runs: AuditRun[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {runs
-            .map((run, i) => ({ run, number: i + 1, previous: runs[i - 1] }))
-            .reverse()
-            .map(({ run, number, previous }) => (
+          {newestFirst.map(({ run, number, previous }) => (
               <TableRow key={run.id}>
                 <TableCell className="pl-4 text-muted-foreground tabular-nums">{number}</TableCell>
                 <TableCell className="whitespace-nowrap">{formatDateTime(run.auditedUtc)}</TableCell>

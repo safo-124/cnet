@@ -32,7 +32,7 @@ MepCatalog keeps that product data in one central catalog and checks building mo
 | **Audit history** | Every audit is saved and grouped by the model's IFC project GlobalId, which stays the same when a file is fixed, re-exported or renamed. A chart shows the model improving from audit to audit. |
 | **Excel report** | Summary, a filterable device list, a *designer actions* to-do sheet with a "Done" column, and every value change. |
 | **AI datasheet reading** | Upload a manufacturer PDF; Claude reads the product table, the values go through the same normalizer as the CSV import, and a person reviews them before anything is saved. |
-| **Web UI** | React + TypeScript + shadcn/ui: catalog management, drag-and-drop model audit, and downloads of the fixed model and report. |
+| **Web UI** | React + TypeScript + shadcn/ui: catalog management, drag-and-drop model audit, and downloads of the fixed model and report. Works on phones with a bottom tab bar and card lists in place of wide tables, plus light and dark themes. |
 | **CLI** | `MepCatalog.Auditor audit model.ifc --report audit.xlsx --fix fixed.ifc`, with a non-zero exit code while problems remain, so it can gate a pipeline. |
 | **Revit add-in** | [`src/MepCatalog.Revit`](src/MepCatalog.Revit): a *MepCatalog* ribbon tab in Revit 2026 that audits the open model with the same rules, fills catalog values into shared parameters in one undoable step, selects the devices that need a designer, and saves the Excel report. |
 | **Python data-quality tool** | [`tools/catalog-quality`](tools/catalog-quality) batch-imports a folder of manufacturer files over the REST API and checks the catalog: missing key data, implausible duct air velocities, fan efficiency (SFP) and spelling-variant duplicates. |

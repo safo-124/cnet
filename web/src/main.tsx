@@ -20,7 +20,8 @@ createRoot(document.getElementById('root')!).render(
         <BrowserRouter>
           <App />
         </BrowserRouter>
-        <Toaster richColors position="bottom-right" />
+        {/* On phones, keep notifications above the bottom tab bar. */}
+        <Toaster richColors position="bottom-right" mobileOffset={{ bottom: 'calc(4.75rem + env(safe-area-inset-bottom))' }} />
       </QueryClientProvider>
     </ThemeProvider>
   </StrictMode>,

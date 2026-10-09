@@ -399,8 +399,27 @@ function DeviceTable({
         </>
       )}
 
+      {/* Phones: one card per device, grouped by level. */}
       {view === 'table' && (
-      <Table>
+        <div className="md:hidden">
+          {[...byLevel].map(([level, rows]) => (
+            <section key={level}>
+              <h3 className="border-y bg-muted/30 px-4 py-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                {level} <span className="font-normal normal-case">· {rows.length} devices</span>
+              </h3>
+              <ul className="divide-y">
+                {rows.map((d) => (
+                  <DeviceListItem key={d.id} device={d} />
+                ))}
+              </ul>
+            </section>
+          ))}
+          {visible.length === 0 && <p className="py-12 text-center text-muted-foreground">No devices in this group.</p>}
+        </div>
+      )}
+
+      {view === 'table' && (
+      <Table className="hidden md:table">
         <TableHeader className="bg-muted/50">
           <TableRow className="hover:bg-transparent">
             <TableHead className="pl-4">Device</TableHead>
@@ -433,6 +452,46 @@ function DeviceTable({
       </Table>
       )}
     </Card>
+  )
+}
+
+function DeviceListItem({ device: d }: { device: AuditDevice }) {
+  const type = ELEMENT_TYPES[d.elementType] ?? { label: d.elementType, icon: BoxIcon }
+  const Icon = type.icon
+
+  return (
+    <li className="flex gap-3 px-4 py-3">
+      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+        <Icon className="size-4" />
+      </span>
+      <div className="grid min-w-0 flex-1 gap-1">
+        <div className="flex items-start justify-between gap-2">
+          <span className="font-medium">{d.name ?? '(unnamed)'}</span>
+          <StatusBadge status={d.status} />
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {type.label} · {d.model ? `${d.manufacturer ?? '—'} ${d.model}` : 'no product set'}
+        </span>
+        <span className="text-sm">{d.message}</span>
+        {d.changes.length > 0 && (
+          <div className="mt-0.5 grid gap-0.5 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs tabular-nums">
+            {d.changes.map((c) => {
+              const info = FIELD_INFO[c.field]
+              return (
+                <div key={c.field} className="flex items-center gap-1.5">
+                  <span className="w-20 text-muted-foreground">{info.label}</span>
+                  <span className={c.modelValue === null ? 'text-muted-foreground italic' : 'text-muted-foreground line-through'}>
+                    {c.modelValue === null ? 'missing' : formatNumber(c.modelValue, info.unit)}
+                  </span>
+                  <ArrowRightIcon className="size-3 text-muted-foreground" />
+                  <span className="font-medium">{formatNumber(c.catalogValue, info.unit)}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </li>
   )
 }
 

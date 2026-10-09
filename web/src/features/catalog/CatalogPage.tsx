@@ -135,6 +135,45 @@ export function CatalogPage() {
           </span>
         </div>
 
+        {products.isPending && (
+          <div className="grid gap-2 p-4">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        )}
+
+        {products.isError && <p className="py-14 text-center text-destructive">{products.error.message}</p>}
+
+        {products.data?.items.length === 0 && (
+          <div className="py-14">
+            <EmptyState
+              filtered={filtered}
+              onImport={() => setDialog({ kind: 'import' })}
+              onClear={() => {
+                setSearch('')
+                setCategory(null)
+              }}
+            />
+          </div>
+        )}
+
+        {/* Phones: one card per product, showing only the values it has. */}
+        {products.data && products.data.items.length > 0 && (
+          <ul className="divide-y md:hidden">
+            {products.data.items.map((p) => (
+              <ProductListItem
+                key={p.id}
+                product={p}
+                onEdit={() => setDialog({ kind: 'edit', product: p })}
+                onDelete={() => setDialog({ kind: 'delete', product: p })}
+              />
+            ))}
+          </ul>
+        )}
+
+        {products.data && products.data.items.length > 0 && (
+        <div className="hidden md:block">
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow className="hover:bg-transparent">
@@ -149,39 +188,7 @@ export function CatalogPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.isPending &&
-              Array.from({ length: 6 }, (_, i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={8} className="px-4">
-                    <Skeleton className="h-8 w-full" />
-                  </TableCell>
-                </TableRow>
-              ))}
-
-            {products.isError && (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={8} className="py-14 text-center text-destructive">
-                  {products.error.message}
-                </TableCell>
-              </TableRow>
-            )}
-
-            {products.data?.items.length === 0 && (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={8} className="py-14">
-                  <EmptyState
-                    filtered={filtered}
-                    onImport={() => setDialog({ kind: 'import' })}
-                    onClear={() => {
-                      setSearch('')
-                      setCategory(null)
-                    }}
-                  />
-                </TableCell>
-              </TableRow>
-            )}
-
-            {products.data?.items.map((p) => (
+            {products.data.items.map((p) => (
               <TableRow key={p.id} className="group">
                 <TableCell className="py-3 pl-4">
                   <div className="font-medium">{p.model}</div>
@@ -232,6 +239,8 @@ export function CatalogPage() {
             ))}
           </TableBody>
         </Table>
+        </div>
+        )}
 
         {total > 0 && (
           <div className="flex items-center justify-between border-t px-4 py-3 text-sm text-muted-foreground">
@@ -305,9 +314,59 @@ function CategoryTile({
       </span>
       <span className="grid min-w-0 gap-0.5">
         <span className="text-lg leading-none font-semibold tabular-nums sm:text-xl">{count ?? '–'}</span>
-        <span className="truncate text-xs text-muted-foreground">{label}</span>
+        <span className="text-xs leading-tight text-muted-foreground">{label}</span>
       </span>
     </button>
+  )
+}
+
+function ProductListItem({ product: p, onEdit, onDelete }: { product: Product; onEdit: () => void; onDelete: () => void }) {
+  const { icon: Icon, tint } = CATEGORY_STYLES[p.category]
+  const values = [
+    { label: 'Airflow', value: p.airflowLps, unit: 'l/s' },
+    { label: 'Power', value: p.powerW, unit: 'W' },
+    { label: 'Connection', value: p.connectionSizeMm, unit: 'mm', prefix: 'Ø' },
+    { label: 'Weight', value: p.weightKg, unit: 'kg' },
+  ].filter((v) => v.value !== null)
+
+  return (
+    <li className="flex gap-3 px-4 py-3">
+      <span className={cn('mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg', tint)} title={CATEGORY_LABELS[p.category]}>
+        <Icon className="size-4" />
+      </span>
+      <div className="grid min-w-0 flex-1 gap-1.5">
+        <div className="flex items-start gap-2">
+          <div className="grid min-w-0 flex-1">
+            <span className="truncate font-medium">{p.model}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {p.manufacturer} · {CATEGORY_LABELS[p.category]}
+            </span>
+          </div>
+          <div className="-mt-1 -mr-2 flex">
+            <Button variant="ghost" size="icon" aria-label={`Edit ${p.model}`} onClick={onEdit}>
+              <PencilIcon />
+            </Button>
+            <Button variant="ghost" size="icon" className="hover:text-destructive" aria-label={`Delete ${p.model}`} onClick={onDelete}>
+              <Trash2Icon />
+            </Button>
+          </div>
+        </div>
+        {values.length > 0 ? (
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+            {values.map((v) => (
+              <div key={v.label} className="flex justify-between gap-2">
+                <dt className="text-muted-foreground">{v.label}</dt>
+                <dd>
+                  <Measure value={v.value} unit={v.unit} prefix={v.prefix} />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <span className="text-xs text-muted-foreground italic">No technical values yet</span>
+        )}
+      </div>
+    </li>
   )
 }
 

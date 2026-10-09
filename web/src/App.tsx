@@ -1,7 +1,7 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { BoxesIcon, HistoryIcon, ScanSearchIcon, type LucideIcon } from 'lucide-react'
-import { ThemeToggle } from '@/components/ThemeToggle'
+import { ThemeCycleButton, ThemeToggle } from '@/components/ThemeToggle'
 import { AuditPage } from '@/features/audit/AuditPage'
 import { CatalogPage } from '@/features/catalog/CatalogPage'
 import { HistoryPage } from '@/features/history/HistoryPage'
@@ -62,30 +62,16 @@ export default function App() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Phones and small tablets: a compact top bar instead of the sidebar. */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 bg-sidebar px-4 text-sidebar-foreground md:hidden">
+        {/* Phones and small tablets: a slim top bar, and the navigation as a bottom tab bar within thumb reach. */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-sidebar px-4 text-sidebar-foreground md:hidden">
           <Brand />
-          <nav className="ml-auto flex gap-1" aria-label="Main">
-            {NAV.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                aria-label={label}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm',
-                    isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-sidebar-muted',
-                  )
-                }
-              >
-                <Icon className="size-4" />
-                <span className="hidden sm:inline">{label}</span>
-              </NavLink>
-            ))}
-          </nav>
+          <div className="ml-auto flex items-center gap-1">
+            <ApiDot />
+            <ThemeCycleButton />
+          </div>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+        <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 md:py-8 lg:px-10 lg:py-10">
           <Routes>
             <Route path="/" element={<Navigate to="/catalog" replace />} />
             <Route path="/catalog" element={<CatalogPage />} />
@@ -96,6 +82,32 @@ export default function App() {
           </Routes>
         </main>
       </div>
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] text-sidebar-foreground md:hidden"
+        aria-label="Main"
+      >
+        {NAV.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              cn(
+                'relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors',
+                isActive ? 'text-sidebar-primary' : 'text-sidebar-muted active:text-sidebar-foreground',
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
+                {isActive && <span className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-sidebar-primary" />}
+                <Icon className="size-5" />
+                {label}
+              </>
+            )}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   )
 }
@@ -125,6 +137,17 @@ function LogoMark() {
         className="stroke-sidebar-primary-foreground"
       />
     </svg>
+  )
+}
+
+/** The phone version of the API status: just the dot, with the details for screen readers and on long-press. */
+function ApiDot() {
+  const stats = useQuery({ queryKey: ['products', 'stats'], queryFn: api.productStats, retry: false })
+  const label = stats.isPending ? 'Connecting to the API' : stats.isSuccess ? `API connected, ${stats.data.total} products` : 'API offline'
+  return (
+    <span className="flex size-9 items-center justify-center" title={label} role="status" aria-label={label}>
+      <span className={cn('size-2 rounded-full', stats.isSuccess ? 'bg-emerald-400' : stats.isPending ? 'bg-sidebar-muted' : 'bg-red-400')} />
+    </span>
   )
 }
 
