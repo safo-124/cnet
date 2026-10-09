@@ -11,10 +11,12 @@ namespace MepCatalog.Ifc;
 
 /// <summary>
 /// Simple solid geometry for the sample building: placements and extruded boxes and cylinders, in millimetres
-/// (the sample's length unit). Enough for a 3D viewer to show where each device is.
+/// (the sample's length unit). An element's shape can combine several solids, e.g. a diffuser's face plate and neck.
 /// </summary>
 internal sealed class SampleGeometry
 {
+    public enum Axis { X, Y, Z }
+
     private readonly IModel _model;
 
     public SampleGeometry(IModel model)
@@ -25,7 +27,7 @@ internal sealed class SampleGeometry
             c.ContextType = "Model";
             c.CoordinateSpaceDimension = 3;
             c.Precision = 1e-5;
-            c.WorldCoordinateSystem = Axis(0, 0, 0);
+            c.WorldCoordinateSystem = Placement3D(0, 0, 0);
         });
     }
 
@@ -36,38 +38,65 @@ internal sealed class SampleGeometry
         _model.Instances.New<IfcLocalPlacement>(p =>
         {
             p.PlacementRelTo = parent;
-            p.RelativePlacement = Axis(x, y, z);
+            p.RelativePlacement = Placement3D(x, y, z);
         });
 
-    /// <summary>A box of <paramref name="width"/> (x) × <paramref name="depth"/> (y), extruded upwards by <paramref name="height"/>, centred on the placement.</summary>
-    public IfcProductDefinitionShape Box(double width, double depth, double height) =>
-        Shape(Extrude(_model.Instances.New<IfcRectangleProfileDef>(r =>
+    /// <summary>One element shape made of one or more solids.</summary>
+    public IfcProductDefinitionShape Shape(params IfcExtrudedAreaSolid[] solids) =>
+        _model.Instances.New<IfcProductDefinitionShape>(s =>
+            s.Representations.Add(_model.Instances.New<IfcShapeRepresentation>(r =>
+            {
+                r.ContextOfItems = Context;
+                r.RepresentationIdentifier = "Body";
+                r.RepresentationType = "SweptSolid";
+                foreach (var solid in solids)
+                    r.Items.Add(solid);
+            })));
+
+    /// <summary>A single box, centred in x and y on the placement, from z = 0 upwards.</summary>
+    public IfcProductDefinitionShape Box(double width, double depth, double height) => Shape(BoxSolid(width, depth, height));
+
+    /// <summary>A box of <paramref name="width"/> (x) × <paramref name="depth"/> (y) × <paramref name="height"/> (z), centred in x and y on (dx, dy), from z = dz upwards.</summary>
+    public IfcExtrudedAreaSolid BoxSolid(double width, double depth, double height, double dx = 0, double dy = 0, double dz = 0) =>
+        Extrude(_model.Instances.New<IfcRectangleProfileDef>(r =>
         {
             r.ProfileType = IfcProfileTypeEnum.AREA;
             r.XDim = width;
             r.YDim = depth;
             r.Position = _model.Instances.New<IfcAxis2Placement2D>(a => a.Location = Point2(0, 0));
-        }), height, Axis(0, 0, 0)));
+        }), height, Placement3D(dx, dy, dz));
 
-    /// <summary>A vertical cylinder, e.g. a downlight.</summary>
-    public IfcProductDefinitionShape VerticalCylinder(double diameter, double height) =>
-        Shape(Extrude(Circle(diameter), height, Axis(0, 0, 0)));
-
-    /// <summary>A cylinder lying along the x axis, centred on the placement, e.g. a duct fan or a round damper.</summary>
-    public IfcProductDefinitionShape HorizontalCylinder(double diameter, double length) =>
-        Shape(Extrude(Circle(diameter), length, _model.Instances.New<IfcAxis2Placement3D>(a =>
-        {
-            a.Location = Point(-length / 2, 0, 0);
-            a.Axis = Direction(1, 0, 0);
-            a.RefDirection = Direction(0, 0, 1);
-        })));
-
-    private IfcCircleProfileDef Circle(double diameter) => _model.Instances.New<IfcCircleProfileDef>(c =>
+    /// <summary>
+    /// A cylinder along <paramref name="axis"/>. Along X or Y it is centred on (dx, dy, dz); along Z it starts at
+    /// (dx, dy, dz) and goes up, like a duct drop or a downlight.
+    /// </summary>
+    public IfcExtrudedAreaSolid CylinderSolid(double diameter, double length, Axis axis, double dx = 0, double dy = 0, double dz = 0)
     {
-        c.ProfileType = IfcProfileTypeEnum.AREA;
-        c.Radius = diameter / 2;
-        c.Position = _model.Instances.New<IfcAxis2Placement2D>(a => a.Location = Point2(0, 0));
-    });
+        var circle = _model.Instances.New<IfcCircleProfileDef>(c =>
+        {
+            c.ProfileType = IfcProfileTypeEnum.AREA;
+            c.Radius = diameter / 2;
+            c.Position = _model.Instances.New<IfcAxis2Placement2D>(a => a.Location = Point2(0, 0));
+        });
+
+        var position = axis switch
+        {
+            Axis.X => _model.Instances.New<IfcAxis2Placement3D>(a =>
+            {
+                a.Location = Point(dx - length / 2, dy, dz);
+                a.Axis = Direction(1, 0, 0);
+                a.RefDirection = Direction(0, 0, 1);
+            }),
+            Axis.Y => _model.Instances.New<IfcAxis2Placement3D>(a =>
+            {
+                a.Location = Point(dx, dy - length / 2, dz);
+                a.Axis = Direction(0, 1, 0);
+                a.RefDirection = Direction(1, 0, 0);
+            }),
+            _ => Placement3D(dx, dy, dz),
+        };
+        return Extrude(circle, length, position);
+    }
 
     private IfcExtrudedAreaSolid Extrude(IfcProfileDef profile, double depth, IfcAxis2Placement3D position) =>
         _model.Instances.New<IfcExtrudedAreaSolid>(s =>
@@ -78,16 +107,7 @@ internal sealed class SampleGeometry
             s.Position = position;
         });
 
-    private IfcProductDefinitionShape Shape(IfcExtrudedAreaSolid solid) => _model.Instances.New<IfcProductDefinitionShape>(s =>
-        s.Representations.Add(_model.Instances.New<IfcShapeRepresentation>(r =>
-        {
-            r.ContextOfItems = Context;
-            r.RepresentationIdentifier = "Body";
-            r.RepresentationType = "SweptSolid";
-            r.Items.Add(solid);
-        })));
-
-    private IfcAxis2Placement3D Axis(double x, double y, double z) =>
+    private IfcAxis2Placement3D Placement3D(double x, double y, double z) =>
         _model.Instances.New<IfcAxis2Placement3D>(a => a.Location = Point(x, y, z));
 
     private IfcCartesianPoint Point(double x, double y, double z) =>

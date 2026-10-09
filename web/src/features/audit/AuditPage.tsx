@@ -34,6 +34,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api, SAMPLES, type AuditDevice, type AuditResponse } from '@/lib/api'
 import { downloadBlob, FIELD_INFO, formatNumber, formatRelative, percentOk as formatPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { DeviceDetails } from './DeviceDetails'
 
 // The 3D viewer (three.js + the web-ifc WebAssembly engine, ~2 MB) is only downloaded when someone opens it.
 const ModelViewer = lazy(() => import('./ModelViewer'))
@@ -49,10 +50,11 @@ type Filter = 'all' | 'fixable' | 'designer' | 'ok'
 
 const toneOf = (d: AuditDevice): StatusTone => STATUS_INFO[d.status].tone
 
-const FILTERS: { value: Filter; label: string; matches: (d: AuditDevice) => boolean }[] = [
+/** `short` is shown on phones, where the full labels would wrap. */
+const FILTERS: { value: Filter; label: string; short?: string; matches: (d: AuditDevice) => boolean }[] = [
   { value: 'all', label: 'All', matches: () => true },
   { value: 'fixable', label: 'Fixable', matches: (d) => toneOf(d) === 'warning' },
-  { value: 'designer', label: 'Needs designer', matches: (d) => toneOf(d) === 'danger' },
+  { value: 'designer', label: 'Needs designer', short: 'Designer', matches: (d) => toneOf(d) === 'danger' },
   { value: 'ok', label: 'OK', matches: (d) => toneOf(d) === 'success' },
 ]
 
@@ -360,7 +362,14 @@ function DeviceTable({
                 filter === f.value && 'bg-card font-medium text-foreground shadow-sm',
               )}
             >
-              {f.label}
+              {f.short ? (
+                <>
+                  <span className="sm:hidden">{f.short}</span>
+                  <span className="hidden sm:inline">{f.label}</span>
+                </>
+              ) : (
+                f.label
+              )}
               <span className="ml-1.5 text-xs text-muted-foreground tabular-nums">{devices.filter(f.matches).length}</span>
             </button>
           ))}
@@ -379,13 +388,13 @@ function DeviceTable({
             />
           </Suspense>
           {selected ? (
-            <Table>
-              <TableBody>
-                <DeviceRow device={selected} />
-              </TableBody>
-            </Table>
+            <DeviceDetails
+              device={selected}
+              typeLabel={(ELEMENT_TYPES[selected.elementType] ?? { label: selected.elementType }).label}
+              onClose={() => setSelectedId(null)}
+            />
           ) : (
-            <p className="border-t px-4 py-3 text-sm text-muted-foreground">Click a device in the model to see its details.</p>
+            <p className="border-t px-4 py-3 text-sm text-muted-foreground">Tap or click a device in the model to see its details.</p>
           )}
         </>
       )}

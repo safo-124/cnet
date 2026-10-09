@@ -10,6 +10,7 @@ using Xbim.Ifc4.Kernel;
 using Xbim.Ifc4.MeasureResource;
 using Xbim.Ifc4.ProductExtension;
 using Xbim.Ifc4.PropertyResource;
+using Xbim.Ifc4.RepresentationResource;
 using Xbim.IO;
 
 namespace MepCatalog.Ifc;
@@ -47,9 +48,9 @@ public static class SampleBuildingFactory
         new("Level 1", "AT-102 Office 102 supply", Shape.CeilingDiffuser, 9000, 3000, "Nordic Air Oy", "KA-160"),
         new("Level 1", "AT-103 Meeting room supply", Shape.CeilingDiffuser, 15000, 3000, "Nordic Air Oy", "KA-160", 50, null, 160, 1.6),
         new("Level 1", "AT-104 WC exhaust", Shape.CeilingDiffuser, 21000, 11000, "Nordic Air Oy", "KP-125"),
-        new("Level 1", "AT-105 Corridor supply", Shape.CeilingDiffuser, 12000, 7000, null, null, 40),
+        new("Level 1", "AT-105 Corridor supply", Shape.CeilingDiffuser, 12000, 6600, null, null, 40),
         new("Level 1", "FAN-101 Kitchen exhaust fan", Shape.DuctFan, 17500, 11000, "VentoTech", "VT-EC 315", 700, 310, 315, 9.8),
-        new("Level 1", "DMP-101 Fire damper shaft A", Shape.RoundDamper, 22500, 7000, "VentoTech", "FD-200", null, null, 200),
+        new("Level 1", "DMP-101 Fire damper shaft A", Shape.RoundDamper, 22500, 6600, "VentoTech", "FD-200", null, null, 200),
         new("Level 1", "LT-101 Open office panel", Shape.Panel, 6000, 10500, "Lumo Lighting", "LX-600 Panel"),
         // Level 2
         new("Level 2", "AT-201 Office 201 supply", Shape.CeilingDiffuser, 3000, 3000, "Nordic Air Oy", "KA-200"),
@@ -88,6 +89,7 @@ public static class SampleBuildingFactory
             Aggregate(model, site, building);
 
             var levels = Devices.Select(d => d.Level).Distinct().ToList();
+            IfcRelContainedInSpatialStructure? topStorey = null;
             foreach (var (level, index) in levels.Select((level, i) => (level, i)))
             {
                 var storey = model.Instances.New<IfcBuildingStorey>(s =>
@@ -102,14 +104,29 @@ public static class SampleBuildingFactory
                 foreach (var element in BuildingElements(model, geometry, storey.ObjectPlacement))
                     contained.RelatedElements.Add(element);
 
-                foreach (var spec in Devices.Where(d => d.Level == level))
+                var devices = Devices.Where(d => d.Level == level).ToList();
+                foreach (var spec in devices)
                 {
                     var element = CreateDevice(model, geometry, storey.ObjectPlacement, spec);
                     contained.RelatedElements.Add(element);
                     AddManufacturerInfo(model, element, spec);
                     AddProductData(model, element, spec);
                 }
+                foreach (var duct in Ductwork(model, geometry, storey.ObjectPlacement, devices))
+                    contained.RelatedElements.Add(duct);
+
+                topStorey = contained;
             }
+
+            // The roof closes the top storey.
+            topStorey!.RelatedElements.Add(model.Instances.New<IfcSlab>(s =>
+            {
+                s.Name = "Roof slab";
+                s.PredefinedType = IfcSlabTypeEnum.ROOF;
+                s.ObjectPlacement = geometry.Place(((IfcBuildingStorey)topStorey.RelatingStructure).ObjectPlacement,
+                    Length / 2, Width / 2, StoreyHeight - SlabThickness);
+                s.Representation = geometry.Box(Length, Width, SlabThickness);
+            }));
 
             txn.Commit();
         }
@@ -147,6 +164,33 @@ public static class SampleBuildingFactory
                 w.Representation = geometry.Box(wall.W, wall.D, wallHeight);
             });
         }
+
+        // Ribbon windows in both long facades (sill at 900 mm), set into the wall plane.
+        foreach (var (y, side) in new[] { (WallThickness / 2, "south"), (Width - WallThickness / 2, "north") })
+        {
+            foreach (var x in new[] { 3000.0, 9000, 15000, 21000 })
+            {
+                yield return model.Instances.New<IfcWindow>(w =>
+                {
+                    w.Name = $"Window {side} {x / 1000:0}";
+                    w.OverallWidth = 2400;
+                    w.OverallHeight = 1500;
+                    w.ObjectPlacement = geometry.Place(storey, x, y, 900);
+                    w.Representation = geometry.Box(2400, 80, 1500);
+                });
+            }
+        }
+
+        // Concrete columns along the north side of the corridor.
+        foreach (var x in new[] { 6000.0, 12000, 18000 })
+        {
+            yield return model.Instances.New<IfcColumn>(c =>
+            {
+                c.Name = $"Column C{x / 1000:0}";
+                c.ObjectPlacement = geometry.Place(storey, x, 8500, 0);
+                c.Representation = geometry.Box(300, 300, wallHeight);
+            });
+        }
     }
 
     private static IfcElement CreateDevice(IModel model, SampleGeometry geometry, IfcObjectPlacement storey, DeviceSpec spec)
@@ -161,20 +205,70 @@ public static class SampleBuildingFactory
         };
         element.Name = spec.Name;
 
-        // (shape, height of its lowest point above the storey floor)
+        // (shape, height of the placement above the storey floor)
         var (representation, z) = spec.Shape switch
         {
-            Shape.CeilingDiffuser => (geometry.Box(600, 600, 60), CeilingHeight - 60),
+            // Face plate flush with the ceiling, round neck up to the branch duct.
+            Shape.CeilingDiffuser => (geometry.Shape(
+                geometry.BoxSolid(600, 600, 40),
+                geometry.CylinderSolid(size, 150, SampleGeometry.Axis.Z, dz: 40)), CeilingHeight - 40),
             Shape.Panel => (geometry.Box(600, 600, 60), CeilingHeight - 60),
             Shape.LinearLight => (geometry.Box(1500, 100, 70), CeilingHeight - 70),
-            Shape.Downlight => (geometry.VerticalCylinder(200, 90), CeilingHeight - 90),
-            // Duct fans and dampers sit in the duct above the ceiling, centred on the duct axis.
-            Shape.DuctFan => (geometry.HorizontalCylinder(size + 100, 600), CeilingHeight + 300),
-            _ => (geometry.HorizontalCylinder(size, 300), CeilingHeight + 300),
+            Shape.Downlight => (geometry.Shape(geometry.CylinderSolid(200, 90, SampleGeometry.Axis.Z)), CeilingHeight - 90),
+            // Fans and dampers sit in the duct above the ceiling; the placement is on the duct axis.
+            Shape.DuctFan => (geometry.Shape(
+                geometry.CylinderSolid(size + 100, 600, SampleGeometry.Axis.X),
+                geometry.BoxSolid(260, 260, 200, dz: (size + 100) / 2.0 - 30)), DuctAxis),
+            _ => (geometry.Shape(
+                geometry.CylinderSolid(size, 300, SampleGeometry.Axis.X),
+                geometry.BoxSolid(120, 120, 120, dy: size / 2.0 + 60, dz: -60)), DuctAxis),
         };
         element.ObjectPlacement = geometry.Place(storey, spec.X, spec.Y, z);
         element.Representation = representation;
         return element;
+    }
+
+    // Ductwork runs in the ceiling void: both mains along the corridor, their axis 300 mm above the ceiling.
+    private const double DuctAxis = CeilingHeight + 300, SupplyMainY = 6600, ExhaustMainY = 7400;
+
+    /// <summary>
+    /// A supply and an exhaust main along the corridor, and a round branch from the right main to every air
+    /// terminal and fan on the level: across to the device, then down to a diffuser's neck.
+    /// </summary>
+    private static IEnumerable<IfcElement> Ductwork(IModel model, SampleGeometry geometry, IfcObjectPlacement storey, IReadOnlyList<DeviceSpec> devices)
+    {
+        static bool IsExhaust(DeviceSpec d) => d.Name.Contains("exhaust", StringComparison.OrdinalIgnoreCase);
+
+        IfcDuctSegment Duct(string name, IfcProductDefinitionShape shape) => model.Instances.New<IfcDuctSegment>(d =>
+        {
+            d.Name = name;
+            d.PredefinedType = IfcDuctSegmentTypeEnum.RIGIDSEGMENT;
+            d.ObjectPlacement = geometry.Place(storey, 0, 0, 0);
+            d.Representation = shape;
+        });
+
+        // Rectangular mains, 300 × 250 mm. The supply main runs on to the fire damper at the shaft.
+        var supplyEnd = devices.FirstOrDefault(d => d.Shape == Shape.RoundDamper)?.X - 150 ?? 21000;
+        yield return Duct("Supply main", geometry.Shape(
+            geometry.BoxSolid(supplyEnd - 1500, 300, 250, dx: (1500 + supplyEnd) / 2, dy: SupplyMainY, dz: DuctAxis - 125)));
+        yield return Duct("Exhaust main", geometry.Shape(
+            geometry.BoxSolid(21000 - 1500, 300, 250, dx: (1500 + 21000) / 2, dy: ExhaustMainY, dz: DuctAxis - 125)));
+
+        foreach (var device in devices.Where(d => d.Shape is Shape.CeilingDiffuser or Shape.DuctFan))
+        {
+            var mainY = IsExhaust(device) ? ExhaustMainY : SupplyMainY;
+            var size = device.ConnectionSizeMm ?? 160;
+            var solids = new List<Xbim.Ifc4.GeometricModelResource.IfcExtrudedAreaSolid>();
+
+            var run = Math.Abs(device.Y - mainY);
+            if (run > 10)
+                solids.Add(geometry.CylinderSolid(size, run, SampleGeometry.Axis.Y, device.X, (device.Y + mainY) / 2, DuctAxis));
+            if (device.Shape == Shape.CeilingDiffuser)
+                solids.Add(geometry.CylinderSolid(size, DuctAxis - (CeilingHeight + 150), SampleGeometry.Axis.Z, device.X, device.Y, CeilingHeight + 150));
+
+            if (solids.Count > 0)
+                yield return Duct($"Branch to {device.Name.Split(' ')[0]}", geometry.Shape([.. solids]));
+        }
     }
 
     private static void Aggregate(IModel model, IfcObjectDefinition parent, IfcObjectDefinition child) =>
